@@ -10,7 +10,7 @@
 
 ## What is this?
 
-**Let Me LC That For You** helps guild loot councils make fair, consistent loot distribution decisions using AI. It pulls data from WarcraftLogs and ThatsmyBIS, analyzes each candidate based on your guild's loot policy, and provides intelligent recommendations with clear reasoning.
+**Let Me LC That For You** helps guild loot councils make fair, consistent loot distribution decisions using AI. It pulls data from WarcraftLogs and ThatsmyBIS, analyses each candidate based on your guild's loot policy, and provides intelligent recommendations with clear reasoning.
 
 Built by and for the WoW Classic community.
 
@@ -18,12 +18,12 @@ Built by and for the WoW Classic community.
 
 ## Features
 
-- **AI-Powered Recommendations** - Uses LLMs to analyze candidates and explain loot decisions
+- **AI-Powered Recommendations** - Uses LLMs to analyse candidates and explain loot decisions
 - **10+ LLM Providers** - Anthropic Claude, OpenAI GPT-4, Google Gemini, Mistral, Groq, xAI, Cohere, Together AI, DeepSeek
 - **WarcraftLogs Integration** - Attendance tracking, parse performance, boss kills, character gear
 - **ThatsmyBIS Integration** - Wishlist priorities, loot history, attendance records
 - **Blizzard API Integration** - Real-time character equipment data
-- **Customizable Guild Policies** - Write your own loot rules in Markdown or use simple metric-based scoring
+- **Customisable Guild Policies** - Write your own loot rules in Markdown or use simple metric-based scoring
 - **Comprehensive Player Metrics**:
   - Attendance percentage (configurable lookback)
   - Recent loot received
@@ -128,7 +128,7 @@ You'll need:
 ### Run LC Tab
 - **Mode Selection** - Single item lookup or full raid zone processing
 - **Zone Selection** - Pick the raid to process
-- **Progress Tracking** - Watch as items are analyzed
+- **Progress Tracking** - Watch as items are analysed
 - **Results Display** - View recommendations with full reasoning
 
 ---
@@ -149,7 +149,7 @@ The AI considers these metrics when making recommendations:
 | **Raider Notes** | Custom notes you've added for each player |
 | **Tank Priority** | Optional priority for tank gear |
 
-Toggle metrics on/off in Settings to customize what the AI considers.
+Toggle metrics on/off in Settings to customise what the AI considers.
 
 ---
 
@@ -174,7 +174,7 @@ Toggle metrics on/off in Settings to customize what the AI considers.
 ### User Files (Documents folder)
 ```
 Documents/Let Me LC That For You/
-├── guild_loot_policy.md    # Your customizable loot policy
+├── guild_loot_policy.md    # Your customisable loot policy
 ├── raider_notes.json       # Per-player notes
 └── Exports/                # CSV exports of loot decisions
 ```
@@ -215,15 +215,24 @@ Run `uv run playwright install` to download required browser binaries.
 
 ## Acknowledgements & Special Thanks
 
-This project wouldn't be possible without these amazing tools and platforms:
+### ThatsmyBIS
+
+A heartfelt thank you to **[Lemmings19](https://github.com/Lemmings19)** for creating **[ThatsmyBIS](https://thatsmybis.com/)**. His amazing tool helped me and my guild throughout TBC Classic 2021 and WotLK Classic. Without his platform, this app would not exist.
+
+### Tools & Platforms
+
+This project also wouldn't be possible without these amazing tools and platforms:
 
 - **[WarcraftLogs](https://www.warcraftlogs.com/)** - The gold standard for WoW raid logging and performance analysis
-- **[ThatsmyBIS](https://thatsmybis.com/)** - Essential wishlist and loot tracking for guilds
 - **[Blizzard Entertainment](https://develop.battle.net/)** - For WoW Classic and the Game Data APIs
 - **[LiteLLM](https://github.com/BerriAI/litellm)** - Unified interface making multi-provider LLM support seamless
 - **[NiceGUI](https://nicegui.io/)** - Beautiful Python-based browser GUI framework
 - **[Astral UV](https://github.com/astral-sh/uv)** - Lightning-fast Python package management
 - **[Nexus-Devs wow-classic-items](https://github.com/nexus-devs/wow-classic-items)** - Comprehensive WoW Classic item database
+
+### Community
+
+Finally, a huge thank you to my guildies from **Off Topic**, and to my friends **adamkex** and **Koncker** for helping me test and brainstorm solutions for this app.
 
 ---
 
