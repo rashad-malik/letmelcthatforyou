@@ -1,0 +1,176 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    tags:
+      - 'v*'  # Auto-build on version tags
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: pyinstaller wowlc.spec --clean
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: letmelcthatforyou-windows
+          path: dist/letmelcthatforyou.exe
+          retention-days: 30
+
+  build-linux:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libfuse2 \
+            imagemagick \
+            libxcb-cursor0 \
+            libxcb-xinerama0 \
+            libxkbcommon-x11-0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libegl1 \
+            libgl1 \
+            libnss3 \
+            libnspr4 \
+            libasound2
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: pyinstaller wowlc.spec --clean
+
+      - name: Create AppDir structure
+        run: |
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/applications
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+
+          # Copy executable
+          cp dist/letmelcthatforyou AppDir/usr/bin/
+
+          # Copy desktop entry
+          cp appimage/letmelcthatforyou.desktop AppDir/
+          cp appimage/letmelcthatforyou.desktop AppDir/usr/share/applications/
+
+          # Copy icon if exists, otherwise create a placeholder
+          if [ -f "assets/icon.png" ]; then
+            cp assets/icon.png AppDir/letmelcthatforyou.png
+            cp assets/icon.png AppDir/usr/share/icons/hicolor/256x256/apps/letmelcthatforyou.png
+          else
+            # Create a simple placeholder icon (256x256 blue gradient square)
+            convert -size 256x256 gradient:#4a90d9-#2d5a87 /tmp/icon.png
+            cp /tmp/icon.png AppDir/letmelcthatforyou.png
+            cp /tmp/icon.png AppDir/usr/share/icons/hicolor/256x256/apps/letmelcthatforyou.png
+          fi
+
+          # Create AppRun
+          cat > AppDir/AppRun << 'APPRUN'
+          #!/bin/bash
+          SELF=$(readlink -f "$0")
+          HERE=${SELF%/*}
+          export PATH="${HERE}/usr/bin:${PATH}"
+          export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
+          export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+
+          # Qt platform settings
+          export QT_QPA_PLATFORM=xcb
+          export QTWEBENGINE_DISABLE_SANDBOX=1
+
+          # Detect if software rendering is needed
+          USE_SOFTWARE=0
+
+          # Check 1: User override
+          [ "$WOWLC_FORCE_SOFTWARE_RENDERING" = "1" ] && USE_SOFTWARE=1
+
+          # Check 2: NixOS detection
+          [ -f /etc/NIXOS ] || [ -d /nix/store ] && USE_SOFTWARE=1
+
+          # Check 3: Test GL (if glxinfo available)
+          if [ "$USE_SOFTWARE" = "0" ] && command -v glxinfo >/dev/null 2>&1; then
+              glxinfo >/dev/null 2>&1 || USE_SOFTWARE=1
+          fi
+
+          # Apply software rendering if needed
+          if [ "$USE_SOFTWARE" = "1" ]; then
+              export QT_XCB_GL_INTEGRATION=none
+              export LIBGL_ALWAYS_SOFTWARE=1
+              export QT_QUICK_BACKEND=software
+              export QTWEBENGINE_CHROMIUM_FLAGS="--disable-gpu --disable-gpu-compositing"
+          fi
+
+          exec "${HERE}/usr/bin/letmelcthatforyou" "$@"
+          APPRUN
+          chmod +x AppDir/AppRun
+
+      - name: Download appimagetool
+        run: |
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+
+      - name: Build AppImage
+        run: |
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage AppDir letmelcthatforyou-x86_64.AppImage
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: letmelcthatforyou-linux
+          path: letmelcthatforyou-x86_64.AppImage
+          retention-days: 30
+
+  release:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            letmelcthatforyou-windows/letmelcthatforyou.exe
+            letmelcthatforyou-linux/letmelcthatforyou-x86_64.AppImage
+          generate_release_notes: true

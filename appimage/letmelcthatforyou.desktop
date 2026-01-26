@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Let Me LC That For You
+Comment=WoW Loot Council Assistant for World of Warcraft
+Exec=letmelcthatforyou
+Icon=letmelcthatforyou
+Categories=Utility;
+Terminal=false
+StartupWMClass=letmelcthatforyou

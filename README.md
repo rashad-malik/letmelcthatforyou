@@ -1,0 +1,240 @@
+# Let Me LC That For You
+
+**An open source, AI-powered loot council assistant for World of Warcraft Classic (Era & TBC Anniversary)**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Platform: Windows](https://img.shields.io/badge/Platform-Windows-blue.svg)](#installation)
+[![Platform: Linux](https://img.shields.io/badge/Platform-Linux-orange.svg)](#installation)
+
+---
+
+## What is this?
+
+**Let Me LC That For You** helps guild loot councils make fair, consistent loot distribution decisions using AI. It pulls data from WarcraftLogs and ThatsmyBIS, analyzes each candidate based on your guild's loot policy, and provides intelligent recommendations with clear reasoning.
+
+Built by and for the WoW Classic community.
+
+---
+
+## Features
+
+- **AI-Powered Recommendations** - Uses LLMs to analyze candidates and explain loot decisions
+- **10+ LLM Providers** - Anthropic Claude, OpenAI GPT-4, Google Gemini, Mistral, Groq, xAI, Cohere, Together AI, DeepSeek
+- **WarcraftLogs Integration** - Attendance tracking, parse performance, boss kills, character gear
+- **ThatsmyBIS Integration** - Wishlist priorities, loot history, attendance records
+- **Blizzard API Integration** - Real-time character equipment data
+- **Customizable Guild Policies** - Write your own loot rules in Markdown or use simple metric-based scoring
+- **Comprehensive Player Metrics**:
+  - Attendance percentage (configurable lookback)
+  - Recent loot received
+  - Wishlist priority position
+  - Main vs Alt status
+  - Parse performance (best/median by zone)
+  - Item level upgrade size
+  - Tier token completion tracking
+  - Custom raider notes
+- **Batch Processing** - Process entire raid zones item-by-item with progress tracking
+- **CSV Export** - Save all decisions for review and record-keeping
+
+<!-- Screenshots coming soon -->
+
+---
+
+## Installation
+
+### Option A: Download Executable (Recommended)
+
+Download the latest release for your platform:
+
+| Platform | Download |
+|----------|----------|
+| **Windows** | [LetMeLCThatForYou.exe](https://github.com/rashad-malik/wowlc-mcp-project/releases/latest) |
+| **Linux** | [LetMeLCThatForYou.AppImage](https://github.com/rashad-malik/wowlc-mcp-project/releases/latest) |
+
+Simply download and run - no installation required.
+
+### Option B: Run from Source
+
+Requires [UV](https://github.com/astral-sh/uv) package manager and Python 3.11+.
+
+**1. Install UV**
+
+Windows (PowerShell):
+```powershell
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+macOS/Linux:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**2. Clone and Run**
+
+```bash
+git clone https://github.com/rashad-malik/wowlc-mcp-project.git
+cd wowlc-mcp-project
+uv sync
+uv run playwright install
+uv run python -m wowlc
+```
+
+This opens a browser-based interface for configuration and running loot council.
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+You'll need:
+1. **WarcraftLogs API credentials** - [Create an API client here](https://www.warcraftlogs.com/api/clients)
+2. **ThatsmyBIS Guild ID** - Found in your TMB guild URL
+3. **LLM API key** - From any supported provider (Anthropic, OpenAI, etc.)
+
+### First-Time Setup
+
+1. **Launch the application**
+2. **Go to "Core Connections" tab**:
+   - Enter your WarcraftLogs Client ID and Secret
+   - Enter your TMB Guild ID
+   - Click "Authenticate TMB" to log in via Discord
+   - Select your LLM provider and enter your API key
+3. **Go to "Settings" tab**:
+   - Select your server region and realm
+   - Configure which player metrics to include
+4. **Go to "Run LC" tab**:
+   - Select a raid zone
+   - Choose Single Item or Raid Zone mode
+   - Click "Run Loot Council"
+5. **Review results** - Each item shows the AI's recommendation with reasoning
+
+---
+
+## Configuration
+
+### Core Connections Tab
+- **WarcraftLogs** - API credentials for pulling raid data
+- **ThatsmyBIS** - Guild ID and Discord authentication
+- **Blizzard API** - Optional, for real-time character equipment
+- **LLM Provider** - Select AI provider and model, enter API key
+
+### Settings Tab
+- **Server Settings** - Region, realm, game version (Era/Anniversary)
+- **Player Metrics** - Toggle which metrics the AI considers
+- **Cache Settings** - TMB data refresh intervals
+- **Raider Notes** - Add per-player notes for special considerations
+
+### Run LC Tab
+- **Mode Selection** - Single item lookup or full raid zone processing
+- **Zone Selection** - Pick the raid to process
+- **Progress Tracking** - Watch as items are analyzed
+- **Results Display** - View recommendations with full reasoning
+
+---
+
+## Player Metrics
+
+The AI considers these metrics when making recommendations:
+
+| Metric | Description |
+|--------|-------------|
+| **Attendance** | Raid attendance percentage over configurable period |
+| **Recent Loot** | Items received in the past 14 days |
+| **Wishlist Position** | Priority ranking on ThatsmyBIS wishlist |
+| **Alt Status** | Whether the character is a main or alt |
+| **Parses** | WarcraftLogs performance (best/median options) |
+| **iLvl Upgrade** | How much the item improves their current gear |
+| **Tier Tokens** | Progress toward tier set completion |
+| **Raider Notes** | Custom notes you've added for each player |
+| **Tank Priority** | Optional priority for tank gear |
+
+Toggle metrics on/off in Settings to customize what the AI considers.
+
+---
+
+## Supported LLM Providers
+
+| Provider | Example Models |
+|----------|----------------|
+| **Anthropic** | Claude Sonnet 4, Claude Opus 4 |
+| **OpenAI** | GPT-4o, GPT-4 Turbo |
+| **Google** | Gemini 1.5 Pro, Gemini 1.5 Flash |
+| **Mistral** | Mistral Large, Mistral Medium |
+| **Groq** | Llama 3, Mixtral |
+| **xAI** | Grok |
+| **Cohere** | Command R+ |
+| **Together AI** | Various open source models |
+| **DeepSeek** | DeepSeek Chat |
+
+---
+
+## Data Storage
+
+### User Files (Documents folder)
+```
+Documents/Let Me LC That For You/
+├── guild_loot_policy.md    # Your customizable loot policy
+├── raider_notes.json       # Per-player notes
+└── Exports/                # CSV exports of loot decisions
+```
+
+### Application Data (AppData folder)
+```
+AppData/Local/letmelcthatforyou/
+├── config.json             # Settings and API credentials
+├── auth/                   # Authentication tokens
+└── cache/                  # Cached raider and item data
+```
+
+---
+
+## Troubleshooting
+
+### UV not found
+Restart your terminal after installing UV, or ensure it's in your PATH.
+
+### Playwright browser errors
+Run `uv run playwright install` to download required browser binaries.
+
+### TMB Authentication Issues
+- Verify your TMB Guild ID is correct
+- Re-authenticate by clicking "Authenticate TMB"
+- Ensure you have access to the guild on ThatsmyBIS
+
+### WCL Authentication Issues
+- Double-check your Client ID and Secret
+- For private/archived logs, use the WCL OAuth flow in Developer Tools
+
+### LLM API Errors
+- Verify your API key is correct
+- Check your API quota and billing status
+- Increase delay between requests if hitting rate limits
+
+---
+
+## Acknowledgements & Special Thanks
+
+This project wouldn't be possible without these amazing tools and platforms:
+
+- **[WarcraftLogs](https://www.warcraftlogs.com/)** - The gold standard for WoW raid logging and performance analysis
+- **[ThatsmyBIS](https://thatsmybis.com/)** - Essential wishlist and loot tracking for guilds
+- **[Blizzard Entertainment](https://develop.battle.net/)** - For WoW Classic and the Game Data APIs
+- **[LiteLLM](https://github.com/BerriAI/litellm)** - Unified interface making multi-provider LLM support seamless
+- **[NiceGUI](https://nicegui.io/)** - Beautiful Python-based browser GUI framework
+- **[Astral UV](https://github.com/astral-sh/uv)** - Lightning-fast Python package management
+- **[Nexus-Devs wow-classic-items](https://github.com/nexus-devs/wow-classic-items)** - Comprehensive WoW Classic item database
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## Disclaimer
+
+This project is not affiliated with or endorsed by Blizzard Entertainment. World of Warcraft, WoW, and related assets are trademarks of Blizzard Entertainment, Inc.
+
+Use this tool responsibly and in accordance with your guild's policies.
