@@ -89,7 +89,7 @@ This opens a NiceGUI interface for configuration and running loot council.
 ### Prerequisites
 
 You'll need:
-1. **ThatsmyBIS Guild ID** - Found in your TMB guild URL (e.g., `1234` from `thatsmybis.com/1234/my-guild/...`)
+1. **ThatsMyBIS Guild ID** - Found in your TMB guild URL (e.g., `1234` from `thatsmybis.com/1234/my-guild/...`)
 2. **WarcraftLogs API credentials** - [Create an API client here](https://www.warcraftlogs.com/api/clients)
 3. **Blizzard API credentials** - [Create an API client here](https://develop.battle.net/access/clients)
 4. **LLM API key** - From any supported provider (Anthropic, OpenAI, etc.)
@@ -120,7 +120,7 @@ You'll need:
 - Era or TBC Anniversary
 
 ### Core Connections Tab
-- **ThatsmyBIS** - Guild ID and Discord authentication
+- **ThatsMyBIS** - Guild ID and Discord authentication
 - **WarcraftLogs** - API credentials for pulling log data
 - **Blizzard API** - For real-time character equipment and server lists
 - **LLM Provider** - Select AI provider and model, enter API key
@@ -222,7 +222,7 @@ Run `uv run playwright install` to download required browser binaries.
 
 ### ThatsMyBIS
 
-A heartfelt thank you to **[Lemmings19](https://github.com/Lemmings19)** for creating **[ThatsmyBIS](https://thatsmybis.com/)**. His amazing tool helped me and my guild throughout TBC Classic 2021 and WotLK Classic. Without his platform, this app would not exist.
+A heartfelt thank you to **[Lemmings19](https://github.com/Lemmings19)** for creating **[ThatsMyBIS](https://thatsmybis.com/)**. His amazing tool helped me and my guild throughout TBC Classic 2021 and WotLK Classic. Without his platform, this app would not exist.
 
 ### Tools & Platforms
 
@@ -237,7 +237,7 @@ This project also wouldn't be possible without these tools and platforms:
 
 ### Community
 
-Finally, a huge thank you to my guildies from **Off Topic**, and to my friends [adam-tj](https://github.com/adam-tj) and **Koncker** for helping me test and brainstorm solutions for this app.
+Finally, a huge thank you to my guildies from **[Off Topic](https://classic.warcraftlogs.com/guild/id/602305)**, and to my friends [adam-tj](https://github.com/adam-tj) and **Koncker** for helping me test and brainstorm solutions for this app.
 
 ---
 
