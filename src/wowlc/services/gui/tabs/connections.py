@@ -346,6 +346,46 @@ def create_connections_tab():
 
         ui.timer(0.2, lambda: check_initial_tmb_auth_status(auth_button, ui_refs['tmb_guild_id']), once=True)
 
+        # --- TMB Data Management subsection ---
+        ui.separator().classes('my-4')
+
+        with ui.row().classes('w-full items-center gap-2 mb-2'):
+            ui.icon('refresh')
+            ui.label('Data Management').classes('text-lg font-semibold')
+
+        ui.label("TMB data is cached once per session. Use the button below to fetch the latest data from That's My BIS.").classes('text-sm text-gray-500 mb-4')
+
+        def refresh_tmb_data():
+            """Refresh TMB data from the server."""
+            guild_id = config.get_tmb_guild_id()
+            if not guild_id:
+                ui.notify('TMB Guild ID is not configured.', type='negative')
+                return
+
+            try:
+                manager = TMBDataManager(guild_id=guild_id, guild_slug="placeholder")
+                if not manager.is_session_valid():
+                    ui.notify('TMB session is invalid or expired. Please re-authenticate.', type='negative')
+                    return
+
+                manager.refresh_all()
+                ui.notify('TMB data refreshed successfully!', type='positive')
+            except TMBSessionNotFoundError:
+                ui.notify('TMB session not found. Please authenticate first.', type='negative')
+            except TMBSessionExpiredError:
+                ui.notify('TMB session expired. Please re-authenticate.', type='negative')
+            except TMBFetchError as e:
+                ui.notify(f'Failed to refresh TMB data: {str(e)}', type='negative')
+            except Exception as e:
+                ui.notify(f'Error refreshing TMB data: {str(e)}', type='negative')
+
+        with ui.row().classes('w-full gap-2'):
+            ui.button(
+                'Refresh TMB Data',
+                on_click=refresh_tmb_data,
+                icon='sync'
+            )
+
     # ==================== WCL Section ====================
     with ui.card().classes('w-full p-4 mb-4'):
         with ui.row().classes('w-full items-center gap-2 mb-2'):

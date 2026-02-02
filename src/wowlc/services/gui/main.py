@@ -4,7 +4,7 @@ Main page layout and entry point for the GUI configuration interface.
 from nicegui import ui
 import os
 from .tabs.connections import create_connections_tab
-from .tabs.settings import create_settings_tab, prefetch_realms
+from .tabs.settings import create_settings_tab, create_server_settings_dialog, prefetch_realms
 from .tabs.run_lc import create_run_lc_tab
 from .tabs.dev import create_dev_dialog
 from .components.help_dialog import create_help_dialog
@@ -45,6 +45,10 @@ def main_page():
                     # Clear game version callbacks on page load to avoid duplicates
                     clear_game_version_callbacks()
 
+                    # Server settings dialog button
+                    server_dialog, server_refs, open_server_dialog = create_server_settings_dialog(game_version_toggle)
+                    ui.button(icon='dns', on_click=open_server_dialog).props('flat round').tooltip('WoW Server Settings')
+
                     # Initialize dark mode with saved preference
                     saved_dark_mode = config.get_dark_mode()
                     dark_mode = ui.dark_mode(value=saved_dark_mode)
@@ -78,7 +82,7 @@ def main_page():
                             ui.label('Core Connections - Set up TMB, WCL, Blizzard, and LLM connections').classes('text-sm')
                         with ui.row().classes('items-center gap-2'):
                             ui.icon('settings', size='sm')
-                            ui.label('Settings - Configure server, cache, metrics, and raider notes').classes('text-sm')
+                            ui.label('Settings - Configure metrics, policy, and raider notes').classes('text-sm')
 
         # Main settings card
         with ui.card().classes('p-6 w-full max-w-4xl'):

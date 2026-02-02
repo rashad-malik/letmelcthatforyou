@@ -359,6 +359,174 @@ def save_all_raider_notes():
     ui.notify('Raider notes saved!', type='positive')
 
 
+# --- Server Settings Dialog ---
+
+def create_server_settings_dialog(game_version_toggle):
+    """Create WoW Server Settings as a modal dialog.
+
+    Args:
+        game_version_toggle: The game version toggle UI element from the header.
+
+    Returns:
+        Tuple of (dialog, ui_refs, open_function)
+    """
+    global _current_realms
+
+    ui_refs = {}
+
+    with ui.dialog() as dialog:
+        dialog.props('persistent')
+
+        with ui.card().classes('w-full max-w-md p-4'):
+            # Header with close button
+            with ui.row().classes('w-full items-center justify-between mb-4'):
+                with ui.row().classes('items-center gap-2'):
+                    ui.icon('dns')
+                    ui.label('WoW Server Settings').classes('text-xl font-semibold')
+                ui.button(icon='close', on_click=dialog.close).props('flat round')
+
+            # Warning label for missing credentials
+            credentials_warning = ui.label(
+                'Blizzard API credentials required. Configure them in Core Connections tab.'
+            ).classes('text-amber-500 w-full mb-2')
+
+            # Server Region field with unsaved indicator
+            with ui.row().classes('w-full items-center gap-2'):
+                ui_refs['server_region'] = ui.select(
+                    label='Server Region',
+                    options=["EU", "US"],
+                    value=config.get_wcl_server_region() or "US"
+                ).classes('flex-grow')
+                server_region_unsaved = ui.label('Unsaved changes!').classes('text-red-500 text-xs')
+                server_region_unsaved.visible = False
+
+            initial_region = config.get_wcl_server_region() or "US"
+            register_field_for_tracking('server_region_dialog', initial_region, server_region_unsaved)
+            ui_refs['server_region'].on_value_change(
+                lambda e: check_field_changed('server_region_dialog', e.value)
+            )
+
+            # Server field with unsaved indicator
+            with ui.row().classes('w-full items-center gap-2'):
+                ui_refs['server_slug'] = ui.select(
+                    label='Server',
+                    options=[],
+                    value=None
+                ).classes('flex-grow')
+                server_slug_unsaved = ui.label('Unsaved changes!').classes('text-red-500 text-xs')
+                server_slug_unsaved.visible = False
+
+            # Check credentials and update UI state
+            has_credentials = check_blizzard_credentials()
+            credentials_warning.set_visibility(not has_credentials)
+            if not has_credentials:
+                ui_refs['server_region'].disable()
+                ui_refs['server_slug'].disable()
+
+            def refresh_server_section():
+                """Refresh the server section after credentials are saved."""
+                global _current_realms
+
+                if check_blizzard_credentials():
+                    credentials_warning.set_visibility(False)
+                    ui_refs['server_region'].enable()
+                    ui_refs['server_slug'].enable()
+
+                    prefetch_realms()
+
+                    region = ui_refs['server_region'].value
+                    game_version = game_version_toggle.value
+                    if region and game_version:
+                        _current_realms = fetch_realm_data(game_version, region)
+                        if _current_realms:
+                            realm_names = sorted(_current_realms.keys())
+                            ui_refs['server_slug'].options = realm_names
+                            ui_refs['server_slug'].value = realm_names[0]
+
+            ui_refs['_refresh_server_section'] = refresh_server_section
+            register_blizzard_cred_callback(refresh_server_section)
+
+            # Update servers when region changes
+            def on_region_change():
+                update_server_options(
+                    ui_refs['server_region'],
+                    ui_refs['server_slug'],
+                    game_version_toggle
+                )
+                check_field_changed('server_region_dialog', ui_refs['server_region'].value)
+
+            ui_refs['server_region'].on_value_change(on_region_change)
+
+            # Update servers when game version toggle changes
+            game_version_toggle.on_value_change(
+                lambda: update_server_options(
+                    ui_refs['server_region'],
+                    ui_refs['server_slug'],
+                    game_version_toggle
+                )
+            )
+
+            def initialize_servers():
+                """Initialize the server dropdown on page load."""
+                global _current_realms
+
+                if not check_blizzard_credentials():
+                    return
+
+                region = ui_refs['server_region'].value
+                game_version = game_version_toggle.value
+                current_server_slug = config.get_wcl_server_slug()
+
+                if region and game_version:
+                    _current_realms = fetch_realm_data(game_version, region)
+
+                    if _current_realms:
+                        realm_names = sorted(_current_realms.keys())
+                        ui_refs['server_slug'].options = realm_names
+
+                        selected_name = None
+                        for name, slug in _current_realms.items():
+                            if slug == current_server_slug:
+                                selected_name = name
+                                break
+
+                        if selected_name:
+                            ui_refs['server_slug'].value = selected_name
+                        else:
+                            ui_refs['server_slug'].value = realm_names[0]
+
+                        # Now register tracking with the initialized value
+                        register_field_for_tracking('server_slug_dialog', ui_refs['server_slug'].value, server_slug_unsaved)
+                        ui_refs['server_slug'].on_value_change(
+                            lambda e: check_field_changed('server_slug_dialog', e.value)
+                        )
+
+            ui.timer(0.1, initialize_servers, once=True)
+
+            # Save button for Server Settings
+            def save_server_settings():
+                global _current_realms
+                if ui_refs['server_slug'].value and ui_refs['server_slug'].value in _current_realms:
+                    slug = _current_realms[ui_refs['server_slug'].value]
+                else:
+                    slug = ""
+                config.set_wcl_server_slug(slug)
+                config.set_wcl_server_region(ui_refs['server_region'].value)
+
+                mark_field_saved('server_region_dialog', ui_refs['server_region'].value)
+                mark_field_saved('server_slug_dialog', ui_refs['server_slug'].value)
+
+                ui.notify('Server settings saved!', type='positive')
+
+            with ui.row().classes('w-full gap-2 mt-4'):
+                ui.button('Save', on_click=save_server_settings, icon='save')
+
+    def open_dialog():
+        dialog.open()
+
+    return dialog, ui_refs, open_dialog
+
+
 # --- Main tab creation ---
 
 def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
@@ -1078,152 +1246,7 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
 
         ui_refs['currently_equipped_enabled'] = currently_equipped_switch
 
-    # ==================== SECTION 2: WoW Server Settings ====================
-    with ui.card().classes('w-full p-4 mb-4'):
-        with ui.row().classes('w-full items-center justify-between mb-4'):
-            with ui.row().classes('items-center gap-2'):
-                ui.icon('dns')
-                ui.label('WoW Server Settings').classes('text-lg font-semibold')
-
-        # Warning label for missing credentials
-        credentials_warning = ui.label(
-            'Blizzard API credentials required. Configure them in Core Connections tab.'
-        ).classes('text-amber-500 w-full mb-2')
-
-        # Server Region field with unsaved indicator
-        with ui.row().classes('w-full items-center gap-2'):
-            ui_refs['server_region'] = ui.select(
-                label='Server Region',
-                options=["EU", "US"],
-                value=config.get_wcl_server_region() or "US"
-            ).classes('flex-grow')
-            server_region_unsaved = ui.label('Unsaved changes!').classes('text-red-500 text-xs')
-            server_region_unsaved.visible = False
-
-        initial_region = config.get_wcl_server_region() or "US"
-        register_field_for_tracking('server_region', initial_region, server_region_unsaved)
-        ui_refs['server_region'].on_value_change(
-            lambda e: check_field_changed('server_region', e.value)
-        )
-
-        # Server field with unsaved indicator
-        with ui.row().classes('w-full items-center gap-2'):
-            ui_refs['server_slug'] = ui.select(
-                label='Server',
-                options=[],
-                value=None
-            ).classes('flex-grow')
-            server_slug_unsaved = ui.label('Unsaved changes!').classes('text-red-500 text-xs')
-            server_slug_unsaved.visible = False
-
-        # We'll register server_slug tracking after initialization
-
-        # Check credentials and update UI state
-        has_credentials = check_blizzard_credentials()
-        credentials_warning.set_visibility(not has_credentials)
-        if not has_credentials:
-            ui_refs['server_region'].disable()
-            ui_refs['server_slug'].disable()
-
-        def refresh_server_section():
-            """Refresh the server section after credentials are saved."""
-            global _current_realms
-
-            if check_blizzard_credentials():
-                credentials_warning.set_visibility(False)
-                ui_refs['server_region'].enable()
-                ui_refs['server_slug'].enable()
-
-                prefetch_realms()
-
-                region = ui_refs['server_region'].value
-                game_version = game_version_toggle.value
-                if region and game_version:
-                    _current_realms = fetch_realm_data(game_version, region)
-                    if _current_realms:
-                        realm_names = sorted(_current_realms.keys())
-                        ui_refs['server_slug'].options = realm_names
-                        ui_refs['server_slug'].value = realm_names[0]
-
-        ui_refs['_refresh_server_section'] = refresh_server_section
-        register_blizzard_cred_callback(refresh_server_section)
-
-        # Update servers when region changes
-        def on_region_change():
-            update_server_options(
-                ui_refs['server_region'],
-                ui_refs['server_slug'],
-                game_version_toggle
-            )
-            check_field_changed('server_region', ui_refs['server_region'].value)
-
-        ui_refs['server_region'].on_value_change(on_region_change)
-
-        # Update servers when game version toggle changes
-        game_version_toggle.on_value_change(
-            lambda: update_server_options(
-                ui_refs['server_region'],
-                ui_refs['server_slug'],
-                game_version_toggle
-            )
-        )
-
-        def initialize_servers():
-            """Initialize the server dropdown on page load."""
-            global _current_realms
-
-            if not check_blizzard_credentials():
-                return
-
-            region = ui_refs['server_region'].value
-            game_version = game_version_toggle.value
-            current_server_slug = config.get_wcl_server_slug()
-
-            if region and game_version:
-                _current_realms = fetch_realm_data(game_version, region)
-
-                if _current_realms:
-                    realm_names = sorted(_current_realms.keys())
-                    ui_refs['server_slug'].options = realm_names
-
-                    selected_name = None
-                    for name, slug in _current_realms.items():
-                        if slug == current_server_slug:
-                            selected_name = name
-                            break
-
-                    if selected_name:
-                        ui_refs['server_slug'].value = selected_name
-                    else:
-                        ui_refs['server_slug'].value = realm_names[0]
-
-                    # Now register tracking with the initialized value
-                    register_field_for_tracking('server_slug', ui_refs['server_slug'].value, server_slug_unsaved)
-                    ui_refs['server_slug'].on_value_change(
-                        lambda e: check_field_changed('server_slug', e.value)
-                    )
-
-        ui.timer(0.1, initialize_servers, once=True)
-
-        # Save button for Server Settings
-        def save_server_settings():
-            global _current_realms
-            if ui_refs['server_slug'].value and ui_refs['server_slug'].value in _current_realms:
-                slug = _current_realms[ui_refs['server_slug'].value]
-            else:
-                slug = ""
-            config.set_wcl_server_slug(slug)
-            config.set_wcl_server_region(ui_refs['server_region'].value)
-
-            mark_field_saved('server_region', ui_refs['server_region'].value)
-            mark_field_saved('server_slug', ui_refs['server_slug'].value)
-
-            ui.notify('Server settings saved!', type='positive')
-
-        with ui.row().classes('w-full gap-2 mt-4'):
-            ui.button('Save', on_click=save_server_settings, icon='save')
-
-    # ==================== SECTION 3: Raider Custom Notes ====================
+    # ==================== SECTION 2: Raider Custom Notes ====================
     with ui.card().classes('w-full p-4 mb-4'):
         with ui.row().classes('w-full items-center justify-between mb-4'):
             with ui.row().classes('items-center gap-2'):
@@ -1242,45 +1265,5 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
 
         with ui.row().classes('w-full gap-2'):
             ui.button('Save', on_click=save_all_raider_notes, icon='save')
-
-    # ==================== SECTION 4: TMB Data Management ====================
-    with ui.card().classes('w-full p-4 mb-4'):
-        with ui.row().classes('w-full items-center justify-between mb-4'):
-            with ui.row().classes('items-center gap-2'):
-                ui.icon('refresh')
-                ui.label('TMB Data Management').classes('text-lg font-semibold')
-
-        ui.label("TMB data is cached once per session. Use the button below to fetch the latest data from That's My BIS.").classes('text-sm mb-4')
-
-        def refresh_tmb_data():
-            """Refresh TMB data from the server."""
-            guild_id = config.get_tmb_guild_id()
-            if not guild_id:
-                ui.notify('TMB Guild ID is not configured. Go to Core Connections tab.', type='negative')
-                return
-
-            try:
-                manager = TMBDataManager(guild_id=guild_id, guild_slug="placeholder")
-                if not manager.is_session_valid():
-                    ui.notify('TMB session is invalid or expired. Please re-authenticate.', type='negative')
-                    return
-
-                manager.refresh_all()
-                ui.notify('TMB data refreshed successfully!', type='positive')
-            except TMBSessionNotFoundError:
-                ui.notify('TMB session not found. Please authenticate first.', type='negative')
-            except TMBSessionExpiredError:
-                ui.notify('TMB session expired. Please re-authenticate.', type='negative')
-            except TMBFetchError as e:
-                ui.notify(f'Failed to refresh TMB data: {str(e)}', type='negative')
-            except Exception as e:
-                ui.notify(f'Error refreshing TMB data: {str(e)}', type='negative')
-
-        with ui.row().classes('w-full gap-2'):
-            ui.button(
-                'Refresh TMB Data',
-                on_click=refresh_tmb_data,
-                icon='sync'
-            )
 
     return ui_refs
