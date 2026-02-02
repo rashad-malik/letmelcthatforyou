@@ -8,6 +8,7 @@ import json
 from ..shared import (
     config,
     RAIDER_NOTES_PATH,
+    POLICY_PATH,
     raider_note_inputs,
     raider_note_unsaved_labels,
     raider_note_original_values,
@@ -16,6 +17,8 @@ from ..shared import (
     notify_currently_equipped_change,
     register_game_version_callback,
     register_blizzard_cred_callback,
+    register_currently_equipped_callback,
+    clear_currently_equipped_callbacks,
     register_field_for_tracking,
     check_field_changed,
     mark_field_saved,
@@ -46,6 +49,84 @@ TBC_ANNIVERSARY_REALMS: dict[str, dict[str, str]] = {
         "Thunderstrike": "thunderstrike",
     },
 }
+
+# Decision Priority metric display labels
+METRIC_LABELS = {
+    "wishlist_position": "Wishlist Position",
+    "attendance": "Attendance",
+    "recent_loot": "Recent Loot History",
+    "ilvl_comparison": "Gear Upgrade (ilvl)",
+    "parses": "Parses / Performance",
+    "last_item_received": "Last Item Received",
+    "tier_token_counts": "Tier Token Counts",
+}
+
+# Rule templates for generated rules preview
+METRIC_RULE_TEMPLATES = {
+    "wishlist_position": "Give preference to raiders who want this item more.",
+    "attendance": "Give preference to raiders with higher attendance.",
+    "recent_loot": "Give preference to raiders who received fewer items recently.",
+    "ilvl_comparison": "Give preference to raiders with a larger ilvl upgrade.",
+    "parses": "Give preference to raiders with better parses.",
+    "last_item_received": "Give preference to raiders who received an item for this slot longest ago.",
+    "tier_token_counts": "Prioritise raiders who are closer to completing 2 or 4 set tier bonus.",
+}
+
+# Metrics that have sub-settings (show gear icon)
+METRICS_WITH_SETTINGS = {"attendance", "recent_loot", "parses"}
+
+# Metrics requiring Currently Equipped to be enabled
+METRICS_REQUIRING_EQUIPPED = {"ilvl_comparison", "tier_token_counts"}
+
+# Short descriptions for each metric
+METRIC_DESCRIPTIONS = {
+    "wishlist_position": "Where this item ranks on the raider's wishlist.",
+    "attendance": "The raider's raid attendance percentage.",
+    "recent_loot": "How many items the raider received recently.",
+    "ilvl_comparison": "The ilvl upgrade this item would provide.",
+    "parses": "The raider's combat log performance.",
+    "last_item_received": "When the raider last received an item for this slot.",
+    "tier_token_counts": "How many tier set pieces the raider has equipped.",
+}
+
+# Descriptions for candidate rules
+CANDIDATE_RULE_DESCRIPTIONS = {
+    "show_alt_status": "Include alt characters as candidates for loot.",
+    "mains_over_alts": "When alts are allowed, main characters are prioritised over alts.",
+    "tank_priority": "Tank-role characters get priority for tank-relevant items.",
+    "raider_notes": "Custom notes you've written about the raider.",
+}
+
+
+# --- Policy file helpers (moved from run_lc.py) ---
+
+def ensure_policy_file():
+    """Ensure policy file exists, create if not."""
+    if not os.path.exists(POLICY_PATH):
+        os.makedirs(os.path.dirname(POLICY_PATH), exist_ok=True)
+        with open(POLICY_PATH, 'w', encoding='utf-8') as f:
+            f.write('')
+
+
+def load_policy_content():
+    """Load policy content from markdown file."""
+    ensure_policy_file()
+    try:
+        with open(POLICY_PATH, 'r', encoding='utf-8') as f:
+            return f.read()
+    except IOError:
+        return ''
+
+
+def save_policy_content(policy_text):
+    """Save policy content to markdown file."""
+    try:
+        os.makedirs(os.path.dirname(POLICY_PATH), exist_ok=True)
+        with open(POLICY_PATH, 'w', encoding='utf-8') as f:
+            f.write(policy_text)
+        ui.notify('Policy saved successfully', type='positive')
+    except IOError as e:
+        ui.notify(f'Error saving policy: {str(e)}', type='negative')
 
 
 # --- Blizzard realm helpers (from general.py) ---
@@ -284,254 +365,638 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
     """Build the combined Settings tab UI and return UI element references."""
     global _current_realms
 
+    # Clear callbacks from previous page loads to avoid duplicates
+    clear_currently_equipped_callbacks()
+
     ui_refs = {}
 
     # ==================== SECTION 1: Player Metrics ====================
+
+    # Parse zone options by game version (used by parses settings)
+    TBC_ZONE_OPTIONS = {
+        1007: "Karazhan",
+        1008: "Gruul/Mag",
+        1010: "SSC/TK",
+        1011: "BT/Hyjal",
+        1012: "Zul'Aman",
+        1013: "Sunwell",
+    }
+
+    ERA_ZONE_OPTIONS = {
+        1028: "Molten Core",
+        1034: "Blackwing Lair",
+        1035: "Temple of Ahn'Qiraj",
+        1036: "Naxxramas",
+    }
+
+    PARSE_FILTER_OPTIONS = {
+        "dps_only": "DPS Only",
+        "everyone": "Everyone",
+    }
+
+    def get_zone_options_for_version():
+        version = game_version_toggle.value if hasattr(game_version_toggle, 'value') else 'Era'
+        if version == 'Era':
+            return ERA_ZONE_OPTIONS
+        return TBC_ZONE_OPTIONS
+
+    # --- Section 1A: Candidate Rules ---
     with ui.card().classes('w-full p-4 mb-4'):
-        with ui.row().classes('w-full items-center justify-between mb-4'):
-            with ui.row().classes('items-center gap-2'):
-                ui.icon('analytics')
-                ui.label('Player Metrics').classes('text-lg font-semibold')
+        with ui.row().classes('w-full items-center gap-2 mb-2'):
+            ui.icon('group')
+            ui.label('Candidate Rules').classes('text-lg font-semibold')
 
-        ui.label('Toggle which metrics are included in the LLM prompt when running Loot Council.').classes('text-sm mb-4')
+        ui.label('Rules about who can be considered for loot.').classes('text-sm text-gray-500 mb-4')
 
-        # Parse zone options by game version
-        TBC_ZONE_OPTIONS = {
-            1007: "Karazhan",
-            1008: "Gruul/Mag",
-            1010: "SSC/TK",
-            1011: "BT/Hyjal",
-            1012: "Zul'Aman",
-            1013: "Sunwell",
-        }
+        with ui.column().classes('w-full gap-2'):
+            # Allow Alts toggle
+            def on_alt_status_toggle(enabled: bool):
+                config.set_show_alt_status(enabled)
+                ui_refs['mains_over_alts_container'].set_visibility(enabled)
+                notify_metric_change()
 
-        ERA_ZONE_OPTIONS = {
-            1028: "Molten Core",
-            1034: "Blackwing Lair",
-            1035: "Temple of Ahn'Qiraj",
-            1036: "Naxxramas",
-        }
-
-        def get_zone_options_for_version():
-            version = game_version_toggle.value if hasattr(game_version_toggle, 'value') else 'Era'
-            if version == 'Era':
-                return ERA_ZONE_OPTIONS
-            return TBC_ZONE_OPTIONS
-
-        def on_attendance_toggle(enabled: bool):
-            config.set_show_attendance(enabled)
-            ui_refs['attendance_lookback_days'].set_visibility(enabled)
-            notify_metric_change()
-
-        def on_recent_loot_toggle(enabled: bool):
-            config.set_show_recent_loot(enabled)
-            ui_refs['loot_lookback_days'].set_visibility(enabled)
-            notify_metric_change()
-
-        def on_parses_toggle(enabled: bool):
-            config.set_show_parses(enabled)
-            ui_refs['parse_zone_select'].set_visibility(enabled)
-            ui_refs['parse_filter_select'].set_visibility(enabled)
-            notify_metric_change()
-
-        def on_zone_change(e):
-            zone_id = e.value
-            if zone_id:
-                zone_options = get_zone_options_for_version()
-                zone_label = zone_options.get(zone_id, "")
-                config.set_parse_zone_id(zone_id)
-                config.set_parse_zone_label(zone_label)
-            else:
-                config.set_parse_zone_id(None)
-                config.set_parse_zone_label("")
-
-        def save_attendance_lookback(e):
-            try:
-                val = int(e.value) if e.value else 60
-            except ValueError:
-                val = 60
-            config.set_attendance_lookback_days(val)
-
-        def save_loot_lookback(e):
-            try:
-                val = int(e.value) if e.value else 14
-            except ValueError:
-                val = 14
-            config.set_loot_lookback_days(val)
-
-        with ui.column().classes('w-full gap-4'):
-            # Metrics in alphabetical order: Alt Status, Attendance, Parses, Recent Loot, Wishlist Position
-
-            # Alt Status metric with sub-toggle
-            with ui.column().classes('w-full gap-1'):
-                def on_alt_status_toggle(enabled: bool):
-                    config.set_show_alt_status(enabled)
-                    ui_refs['mains_over_alts'].set_visibility(enabled)
-                    notify_metric_change()
-
-                ui_refs['show_alt_status'] = ui.switch(
-                    'Alts included',
+            with ui.row().classes('items-center gap-2 w-full'):
+                ui_refs['show_alt_status'] = ui.checkbox(
                     value=config.get_show_alt_status(),
                     on_change=lambda e: on_alt_status_toggle(e.value)
                 )
-                ui.label('Allow alt characters to be included in LC decision making if they have the item on their wishlist.').classes('text-xs text-gray-500 ml-10')
+                with ui.column().classes('flex-1 gap-0'):
+                    ui.label('Allow Alts').classes('font-medium')
+                    ui.label(CANDIDATE_RULE_DESCRIPTIONS['show_alt_status']).classes('text-xs text-gray-500')
 
-                # Mains over alts sub-toggle (saves immediately on change)
-                with ui.element('div').classes('w-full pl-10'):
-                    def on_mains_over_alts_toggle(enabled: bool):
-                        config.set_mains_over_alts(enabled)
-                        notify_metric_change()
+            # Mains over alts sub-option (indented)
+            with ui.element('div').classes('pl-8') as mains_container:
+                def on_mains_over_alts_toggle(enabled: bool):
+                    config.set_mains_over_alts(enabled)
+                    notify_metric_change()
 
-                    ui_refs['mains_over_alts'] = ui.switch(
-                        'Mains over alts',
+                with ui.row().classes('items-center gap-2 w-full'):
+                    ui_refs['mains_over_alts'] = ui.checkbox(
                         value=config.get_mains_over_alts(),
                         on_change=lambda e: on_mains_over_alts_toggle(e.value)
                     )
-                    ui.label('Give preference to main characters over alts in loot decisions.').classes('text-xs text-gray-500 ml-10')
+                    with ui.column().classes('flex-1 gap-0'):
+                        ui.label('Give priority to Mains').classes('font-medium')
+                        ui.label(CANDIDATE_RULE_DESCRIPTIONS['mains_over_alts']).classes('text-xs text-gray-500')
 
-                ui_refs['mains_over_alts'].set_visibility(config.get_show_alt_status())
-
-            # Attendance metric
-            with ui.column().classes('w-full gap-1'):
-                ui_refs['show_attendance'] = ui.switch(
-                    'Attendance',
-                    value=config.get_show_attendance(),
-                    on_change=lambda e: on_attendance_toggle(e.value)
-                )
-                ui.label('Consider player attendance percentages.').classes('text-xs text-gray-500 ml-10')
-
-                # Attendance lookback (saves immediately on change)
-                with ui.element('div').classes('w-full pl-10'):
-                    ui_refs['attendance_lookback_days'] = ui.input(
-                        label='Attendance Lookback Days',
-                        value=str(config.get_attendance_lookback_days()),
-                        on_change=save_attendance_lookback
-                    ).classes('w-full')
-
-                ui_refs['attendance_lookback_days'].set_visibility(config.get_show_attendance())
-
-            # Parses metric with zone selector and filter mode
-            with ui.column().classes('w-full gap-1'):
-                ui_refs['show_parses'] = ui.switch(
-                    'Parses',
-                    value=config.get_show_parses(),
-                    on_change=lambda e: on_parses_toggle(e.value)
-                )
-                ui.label('Consider character parses for a selected zone.').classes('text-xs text-gray-500 ml-10')
-
-                # Parse zone select (saves immediately on change)
-                with ui.element('div').classes('w-full pl-10'):
-                    ui_refs['parse_zone_select'] = ui.select(
-                        label='Parse Zone',
-                        options=get_zone_options_for_version(),
-                        value=None,
-                        on_change=on_zone_change
-                    ).classes('w-full')
-
-                ui_refs['parse_zone_select'].set_visibility(config.get_show_parses())
-
-                def refresh_parse_zone_options():
-                    new_options = get_zone_options_for_version()
-                    ui_refs['parse_zone_select'].options = new_options
-                    current_value = ui_refs['parse_zone_select'].value
-                    if current_value not in new_options:
-                        ui_refs['parse_zone_select'].value = None
-                        config.set_parse_zone_id(None)
-                        config.set_parse_zone_label("")
-                    ui_refs['parse_zone_select'].update()
-
-                register_game_version_callback(refresh_parse_zone_options)
-
-                saved_zone_id = config.get_parse_zone_id()
-                if saved_zone_id in get_zone_options_for_version():
-                    ui_refs['parse_zone_select'].value = saved_zone_id
-
-                # Parse filter mode dropdown (saves immediately on change)
-                PARSE_FILTER_OPTIONS = {
-                    "dps_only": "DPS Only",
-                    "everyone": "Everyone",
-                }
-
-                with ui.element('div').classes('w-full pl-10'):
-                    ui_refs['parse_filter_select'] = ui.select(
-                        label='Fetch Parses For',
-                        options=PARSE_FILTER_OPTIONS,
-                        value=config.get_parse_filter_mode(),
-                        on_change=lambda e: config.set_parse_filter_mode(e.value)
-                    ).classes('w-full')
-
-                ui_refs['parse_filter_select'].set_visibility(config.get_show_parses())
-
-            # Recent Loot metric
-            with ui.column().classes('w-full gap-1'):
-                ui_refs['show_recent_loot'] = ui.switch(
-                    'Recent Loot',
-                    value=config.get_show_recent_loot(),
-                    on_change=lambda e: on_recent_loot_toggle(e.value)
-                )
-                ui.label('Consider how many items a player has recently received.').classes('text-xs text-gray-500 ml-10')
-
-                # Loot lookback (saves immediately on change)
-                with ui.element('div').classes('w-full pl-10'):
-                    ui_refs['loot_lookback_days'] = ui.input(
-                        label='Loot Lookback Days',
-                        value=str(config.get_loot_lookback_days()),
-                        on_change=save_loot_lookback
-                    ).classes('w-full')
-
-                ui_refs['loot_lookback_days'].set_visibility(config.get_show_recent_loot())
-
-            # Wishlist Position metric (no lookback)
-            with ui.column().classes('w-full gap-1'):
-                def on_wishlist_toggle(enabled: bool):
-                    config.set_show_wishlist_position(enabled)
-                    notify_metric_change()
-
-                ui_refs['show_wishlist_position'] = ui.switch(
-                    'Wishlist Position',
-                    value=config.get_show_wishlist_position(),
-                    on_change=lambda e: on_wishlist_toggle(e.value)
-                )
-                ui.label('Consider the order the raider places the item on their wishlist (lower = more desired).').classes('text-xs text-gray-500 ml-10')
+            ui_refs['mains_over_alts_container'] = mains_container
+            mains_container.set_visibility(config.get_show_alt_status())
 
             # Tank Priority toggle
-            with ui.column().classes('w-full gap-1'):
-                def on_tank_priority_toggle(enabled: bool):
-                    config.set_tank_priority(enabled)
-                    notify_metric_change()
+            def on_tank_priority_toggle(enabled: bool):
+                config.set_tank_priority(enabled)
+                notify_metric_change()
 
-                ui_refs['tank_priority'] = ui.switch(
-                    'Tank Priority',
+            with ui.row().classes('items-center gap-2 w-full'):
+                ui_refs['tank_priority'] = ui.checkbox(
                     value=config.get_tank_priority(),
                     on_change=lambda e: on_tank_priority_toggle(e.value)
                 )
-                ui.label('Prioritize tank-role characters for tank-relevant items.').classes('text-xs text-gray-500 ml-10')
+                with ui.column().classes('flex-1 gap-0'):
+                    ui.label('Tank Priority').classes('font-medium')
+                    ui.label(CANDIDATE_RULE_DESCRIPTIONS['tank_priority']).classes('text-xs text-gray-500')
 
-            # Raider Notes toggle
-            with ui.column().classes('w-full gap-1'):
-                def on_raider_notes_toggle(enabled: bool):
-                    config.set_show_raider_notes(enabled)
-                    notify_metric_change()
+            # Raider Notes toggle (moved from metrics)
+            def on_raider_notes_toggle(enabled: bool):
+                config.set_show_raider_notes(enabled)
+                notify_metric_change()
 
-                ui_refs['show_raider_notes'] = ui.switch(
-                    'Raider Notes',
+            with ui.row().classes('items-center gap-2 w-full'):
+                ui_refs['show_raider_notes'] = ui.checkbox(
                     value=config.get_show_raider_notes(),
                     on_change=lambda e: on_raider_notes_toggle(e.value)
                 )
-                ui.label('Include custom raider notes in loot council prompts.').classes('text-xs text-gray-500 ml-10')
+                with ui.column().classes('flex-1 gap-0'):
+                    ui.label('Include Raider Notes').classes('font-medium')
+                    ui.label(CANDIDATE_RULE_DESCRIPTIONS['raider_notes']).classes('text-xs text-gray-500')
 
-            # Last Item Received toggle
-            with ui.column().classes('w-full gap-1'):
-                def on_last_item_received_toggle(enabled: bool):
-                    config.set_show_last_item_received(enabled)
+    # --- Section 1B: Policy Mode ---
+    with ui.card().classes('w-full p-4 mb-4'):
+        with ui.row().classes('w-full items-center gap-2 mb-2'):
+            ui.icon('tune')
+            ui.label('Policy Mode').classes('text-lg font-semibold')
+
+        ui.label('Simple mode uses priority rules below. Custom mode uses your written policy.').classes('text-sm text-gray-500 mb-4')
+
+        def on_policy_mode_change(e):
+            mode = e.sender.value
+            is_simple = mode == 'Simple'
+            config.set_policy_mode('simple' if is_simple else 'custom')
+            simple_mode_container.set_visibility(is_simple)
+            custom_mode_container.set_visibility(not is_simple)
+            notify_metric_change()
+
+        ui_refs['policy_mode'] = ui.toggle(
+            ['Simple', 'Custom'],
+            value='Simple' if config.get_policy_mode() == 'simple' else 'Custom',
+            on_change=on_policy_mode_change
+        )
+
+    # --- Shared helper functions for metrics (used by both Simple and Custom modes) ---
+    metric_settings_panels = {}
+    custom_metric_settings_panels = {}
+    metric_checkboxes = {}
+    custom_metric_checkboxes = {}
+    metric_rows = {}
+
+    def get_metric_enabled(metric_id: str) -> bool:
+        """Get whether a metric is enabled in config."""
+        mapping = {
+            "wishlist_position": config.get_show_wishlist_position,
+            "attendance": config.get_show_attendance,
+            "recent_loot": config.get_show_recent_loot,
+            "ilvl_comparison": config.get_show_ilvl_comparisons,
+            "parses": config.get_show_parses,
+            "last_item_received": config.get_show_last_item_received,
+            "tier_token_counts": config.get_show_tier_token_counts,
+        }
+        return mapping.get(metric_id, lambda: False)()
+
+    def set_metric_enabled(metric_id: str, enabled: bool):
+        """Set whether a metric is enabled in config."""
+        mapping = {
+            "wishlist_position": config.set_show_wishlist_position,
+            "attendance": config.set_show_attendance,
+            "recent_loot": config.set_show_recent_loot,
+            "ilvl_comparison": config.set_show_ilvl_comparisons,
+            "parses": config.set_show_parses,
+            "last_item_received": config.set_show_last_item_received,
+            "tier_token_counts": config.set_show_tier_token_counts,
+        }
+        setter = mapping.get(metric_id)
+        if setter:
+            setter(enabled)
+
+    def is_metric_available(metric_id: str) -> bool:
+        """Check if a metric is available (not blocked by dependencies)."""
+        if metric_id in METRICS_REQUIRING_EQUIPPED:
+            return config.get_currently_equipped_enabled()
+        return True
+
+    def get_clean_metric_order():
+        """Get metric order, ensuring all metrics are present."""
+        all_metrics = list(METRIC_LABELS.keys())
+        current_order = config.get_metric_order()
+        seen = set()
+        clean_order = []
+
+        for m in current_order:
+            if m not in seen and m in all_metrics:
+                seen.add(m)
+                clean_order.append(m)
+
+        for m in all_metrics:
+            if m not in seen:
+                clean_order.append(m)
+                seen.add(m)
+
+        if clean_order != current_order:
+            config.set_metric_order(clean_order)
+
+        return clean_order
+
+    # --- Section 1C: Decision Priorities (Simple mode) ---
+    simple_mode_container = ui.column().classes('w-full')
+    ui_refs['simple_mode_container'] = simple_mode_container
+
+    with simple_mode_container:
+        with ui.card().classes('w-full p-4 mb-4'):
+            with ui.row().classes('w-full items-center gap-2 mb-2'):
+                ui.icon('sort')
+                ui.label('Decision Priorities').classes('text-lg font-semibold')
+
+            ui.label('Drag metrics to set priority order. Top = highest priority.').classes('text-sm text-gray-500 mb-4')
+
+            def toggle_settings_panel(metric_id: str):
+                """Toggle visibility of a metric's settings panel."""
+                panel = metric_settings_panels.get(metric_id)
+                if panel:
+                    panel.set_visibility(not panel.visible)
+
+            def toggle_custom_settings_panel(metric_id: str):
+                """Toggle visibility of a metric's settings panel in Custom mode."""
+                panel = custom_metric_settings_panels.get(metric_id)
+                if panel:
+                    panel.set_visibility(not panel.visible)
+
+            def on_metric_checkbox_change(metric_id: str, enabled: bool):
+                """Handle metric checkbox toggle."""
+                set_metric_enabled(metric_id, enabled)
+                # Update row styling
+                row = metric_rows.get(metric_id)
+                if row:
+                    if enabled:
+                        row.classes(remove='opacity-50')
+                    else:
+                        row.classes(add='opacity-50')
+                # Refresh rule preview
+                rule_preview.refresh()
+                notify_metric_change()
+
+            def on_metric_reorder(new_order):
+                """Handle metric reordering from drag-drop."""
+                if new_order:
+                    config.set_metric_order(new_order)
+                    rule_preview.refresh()
                     notify_metric_change()
 
-                ui_refs['show_last_item_received'] = ui.switch(
-                    'Last Item Received',
-                    value=config.get_show_last_item_received(),
-                    on_change=lambda e: on_last_item_received_toggle(e.value)
-                )
-                ui.label('Consider how long ago they received the last item for the considered slot.').classes('text-xs text-gray-500 ml-10')
+            def update_equipped_dependent_metrics():
+                """Update state of metrics that depend on Currently Equipped."""
+                equipped_enabled = config.get_currently_equipped_enabled()
+                for metric_id in METRICS_REQUIRING_EQUIPPED:
+                    checkbox = metric_checkboxes.get(metric_id)
+                    row = metric_rows.get(metric_id)
+                    if checkbox:
+                        if equipped_enabled:
+                            checkbox.enable()
+                        else:
+                            checkbox.disable()
+                            # Also uncheck if disabled
+                            if checkbox.value:
+                                checkbox.value = False
+                                set_metric_enabled(metric_id, False)
+                    if row:
+                        if not equipped_enabled:
+                            row.classes(add='opacity-50')
+                        elif get_metric_enabled(metric_id):
+                            row.classes(remove='opacity-50')
+                rule_preview.refresh()
+
+            def update_custom_equipped_dependent_metrics():
+                """Update state of metrics that depend on Currently Equipped in Custom mode."""
+                equipped_enabled = config.get_currently_equipped_enabled()
+                for metric_id in METRICS_REQUIRING_EQUIPPED:
+                    checkbox = custom_metric_checkboxes.get(metric_id)
+                    if checkbox:
+                        if equipped_enabled:
+                            checkbox.enable()
+                        else:
+                            checkbox.disable()
+                            if checkbox.value:
+                                checkbox.value = False
+                                set_metric_enabled(metric_id, False)
+
+            # Sortable container
+            with ui.column().classes('w-full sortable-metrics gap-1'):
+                metric_order = get_clean_metric_order()
+
+                for idx, metric_id in enumerate(metric_order):
+                    is_enabled = get_metric_enabled(metric_id)
+                    is_available = is_metric_available(metric_id)
+                    has_settings = metric_id in METRICS_WITH_SETTINGS
+
+                    # Metric row card
+                    row_classes = 'w-full metric-item p-2 rounded border'
+                    if not is_enabled or not is_available:
+                        row_classes += ' opacity-50'
+
+                    with ui.card().classes(row_classes) as row:
+                        row._props['data-id'] = metric_id
+                        metric_rows[metric_id] = row
+
+                        with ui.row().classes('items-center gap-2 w-full'):
+                            # Drag handle
+                            ui.icon('drag_indicator').classes('text-gray-400 cursor-grab drag-handle')
+
+                            # Checkbox
+                            checkbox = ui.checkbox(
+                                value=is_enabled and is_available,
+                            )
+                            if not is_available:
+                                checkbox.disable()
+                            checkbox.on_value_change(
+                                lambda e, mid=metric_id: on_metric_checkbox_change(mid, e.value)
+                            )
+                            metric_checkboxes[metric_id] = checkbox
+
+                            # Label and description
+                            with ui.column().classes('flex-1 gap-0'):
+                                label_text = METRIC_LABELS.get(metric_id, metric_id)
+                                if metric_id in METRICS_REQUIRING_EQUIPPED:
+                                    label_text += " (requires Currently Equipped)"
+                                ui.label(label_text).classes('font-medium')
+                                ui.label(METRIC_DESCRIPTIONS.get(metric_id, '')).classes('text-xs text-gray-500')
+
+                            # Settings gear icon (if metric has settings)
+                            if has_settings:
+                                ui.button(
+                                    icon='settings',
+                                    on_click=lambda mid=metric_id: toggle_settings_panel(mid)
+                                ).props('flat dense round').classes('text-gray-500')
+
+                        # Settings panel (hidden by default)
+                        if has_settings:
+                            with ui.element('div').classes('pl-8 pt-2 w-full') as settings_panel:
+                                settings_panel.set_visibility(False)
+                                metric_settings_panels[metric_id] = settings_panel
+
+                                if metric_id == "attendance":
+                                    def save_attendance_lookback(e):
+                                        try:
+                                            val = int(e.value) if e.value else 60
+                                        except ValueError:
+                                            val = 60
+                                        config.set_attendance_lookback_days(val)
+
+                                    ui_refs['attendance_lookback_days'] = ui.input(
+                                        label='Attendance Lookback Days',
+                                        value=str(config.get_attendance_lookback_days()),
+                                        on_change=save_attendance_lookback
+                                    ).classes('w-full max-w-xs')
+                                    ui.label('Number of days to consider for attendance calculation.').classes('text-xs text-gray-500')
+
+                                elif metric_id == "recent_loot":
+                                    def save_loot_lookback(e):
+                                        try:
+                                            val = int(e.value) if e.value else 14
+                                        except ValueError:
+                                            val = 14
+                                        config.set_loot_lookback_days(val)
+
+                                    ui_refs['loot_lookback_days'] = ui.input(
+                                        label='Loot Lookback Days',
+                                        value=str(config.get_loot_lookback_days()),
+                                        on_change=save_loot_lookback
+                                    ).classes('w-full max-w-xs')
+                                    ui.label('Number of days to consider for recent loot history.').classes('text-xs text-gray-500')
+
+                                elif metric_id == "parses":
+                                    def on_zone_change(e):
+                                        zone_id = e.value
+                                        if zone_id:
+                                            zone_options = get_zone_options_for_version()
+                                            zone_label = zone_options.get(zone_id, "")
+                                            config.set_parse_zone_id(zone_id)
+                                            config.set_parse_zone_label(zone_label)
+                                        else:
+                                            config.set_parse_zone_id(None)
+                                            config.set_parse_zone_label("")
+
+                                    ui_refs['parse_zone_select'] = ui.select(
+                                        label='Parse Zone',
+                                        options=get_zone_options_for_version(),
+                                        value=config.get_parse_zone_id() if config.get_parse_zone_id() in get_zone_options_for_version() else None,
+                                        on_change=on_zone_change
+                                    ).classes('w-full max-w-xs')
+
+                                    ui_refs['parse_filter_select'] = ui.select(
+                                        label='Fetch Parses For',
+                                        options=PARSE_FILTER_OPTIONS,
+                                        value=config.get_parse_filter_mode(),
+                                        on_change=lambda e: config.set_parse_filter_mode(e.value)
+                                    ).classes('w-full max-w-xs')
+
+                                    def refresh_parse_zone_options():
+                                        new_options = get_zone_options_for_version()
+                                        ui_refs['parse_zone_select'].options = new_options
+                                        current_value = ui_refs['parse_zone_select'].value
+                                        if current_value not in new_options:
+                                            ui_refs['parse_zone_select'].value = None
+                                            config.set_parse_zone_id(None)
+                                            config.set_parse_zone_label("")
+                                        ui_refs['parse_zone_select'].update()
+
+                                    register_game_version_callback(refresh_parse_zone_options)
+
+            # SortableJS integration
+            ui.add_body_html('''
+            <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+            <script>
+            function initSortableMetrics() {
+                const container = document.querySelector('.sortable-metrics');
+                if (container && !container._sortableInit) {
+                    container._sortableInit = true;
+                    Sortable.create(container, {
+                        animation: 150,
+                        ghostClass: 'opacity-30',
+                        handle: '.drag-handle',
+                        onEnd: function(evt) {
+                            const items = Array.from(container.querySelectorAll('.metric-item'))
+                                .map(el => el.dataset.id)
+                                .filter(id => id);
+                            if (items.length > 0) {
+                                emitEvent('metric-reorder', {order: items});
+                            }
+                        }
+                    });
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    setTimeout(initSortableMetrics, 500);
+                });
+            } else {
+                setTimeout(initSortableMetrics, 500);
+            }
+            new MutationObserver(function() {
+                setTimeout(initSortableMetrics, 100);
+            }).observe(document.body, {childList: true, subtree: true});
+            </script>
+            ''')
+
+            ui.on('metric-reorder', lambda e: on_metric_reorder(e.args.get('order', [])))
+
+        # --- Generated Rules Preview (inside Simple mode container) ---
+        with ui.card().classes('w-full p-4 mb-4'):
+            with ui.row().classes('w-full items-center gap-2 mb-2'):
+                ui.icon('preview')
+                ui.label('Generated Rules Preview').classes('text-lg font-semibold')
+
+            ui.label('These rules will be sent to the LLM based on your settings above.').classes('text-sm text-gray-500 mb-4')
+
+            @ui.refreshable
+            def rule_preview():
+                """Render the generated rules preview."""
+                metric_order = get_clean_metric_order()
+
+                with ui.column().classes('w-full bg-gray-100 dark:bg-gray-800 p-3 rounded'):
+                    rule_num = 1
+
+                    # Decision Priority rules only (Candidate Rules are not shown here)
+                    for metric_id in metric_order:
+                        if get_metric_enabled(metric_id) and is_metric_available(metric_id):
+                            rule_text = METRIC_RULE_TEMPLATES.get(metric_id, "")
+                            if rule_text:
+                                ui.label(f"RULE {rule_num}: {rule_text}").classes('text-sm font-mono')
+                                rule_num += 1
+
+                    if rule_num == 1:
+                        ui.label("No rules configured. Enable metrics above to generate rules.").classes('text-sm text-gray-500 italic')
+
+            rule_preview()
+
+    # --- Section 1D: Tracked Metrics + Custom Policy (Custom mode) ---
+    custom_mode_container = ui.column().classes('w-full')
+    ui_refs['custom_mode_container'] = custom_mode_container
+
+    with custom_mode_container:
+        # Tracked Metrics card (checkboxes only, no drag-drop)
+        with ui.card().classes('w-full p-4 mb-4'):
+            with ui.row().classes('w-full items-center gap-2 mb-2'):
+                ui.icon('checklist')
+                ui.label('Tracked Metrics').classes('text-lg font-semibold')
+
+            ui.label('Select which metrics to display in candidate information.').classes('text-sm text-gray-500 mb-4')
+
+            with ui.column().classes('w-full gap-2'):
+                # Sort metrics alphabetically by display label
+                for metric_id in sorted(METRIC_LABELS.keys(), key=lambda x: METRIC_LABELS[x]):
+                    is_enabled = get_metric_enabled(metric_id)
+                    is_available = is_metric_available(metric_id)
+                    has_settings = metric_id in METRICS_WITH_SETTINGS
+
+                    with ui.column().classes('w-full'):
+                        with ui.row().classes('items-center gap-2 w-full'):
+                            checkbox = ui.checkbox(
+                                value=is_enabled and is_available,
+                            )
+                            if not is_available:
+                                checkbox.disable()
+
+                            # Store reference for dependent metrics so they can be updated
+                            if metric_id in METRICS_REQUIRING_EQUIPPED:
+                                custom_metric_checkboxes[metric_id] = checkbox
+
+                            def make_handler(mid):
+                                def handler(e):
+                                    set_metric_enabled(mid, e.value)
+                                    notify_metric_change()
+                                return handler
+
+                            checkbox.on_value_change(make_handler(metric_id))
+
+                            # Label and description
+                            with ui.column().classes('flex-1 gap-0'):
+                                label_text = METRIC_LABELS.get(metric_id, metric_id)
+                                if metric_id in METRICS_REQUIRING_EQUIPPED:
+                                    label_text += " (requires Currently Equipped)"
+                                ui.label(label_text).classes('font-medium')
+                                ui.label(METRIC_DESCRIPTIONS.get(metric_id, '')).classes('text-xs text-gray-500')
+
+                            # Settings gear icon (if metric has settings)
+                            if has_settings:
+                                ui.button(
+                                    icon='settings',
+                                    on_click=lambda mid=metric_id: toggle_custom_settings_panel(mid)
+                                ).props('flat dense round').classes('text-gray-500')
+
+                        # Settings panel (hidden by default)
+                        if has_settings:
+                            with ui.element('div').classes('pl-8 pt-2 w-full') as settings_panel:
+                                settings_panel.set_visibility(False)
+                                custom_metric_settings_panels[metric_id] = settings_panel
+
+                                if metric_id == "attendance":
+                                    def save_attendance_lookback_custom(e):
+                                        try:
+                                            val = int(e.value) if e.value else 60
+                                        except ValueError:
+                                            val = 60
+                                        config.set_attendance_lookback_days(val)
+
+                                    ui_refs['attendance_lookback_days_custom'] = ui.input(
+                                        label='Attendance Lookback Days',
+                                        value=str(config.get_attendance_lookback_days()),
+                                        on_change=save_attendance_lookback_custom
+                                    ).classes('w-full max-w-xs')
+                                    ui.label('Number of days to consider for attendance calculation.').classes('text-xs text-gray-500')
+
+                                elif metric_id == "recent_loot":
+                                    def save_loot_lookback_custom(e):
+                                        try:
+                                            val = int(e.value) if e.value else 14
+                                        except ValueError:
+                                            val = 14
+                                        config.set_loot_lookback_days(val)
+
+                                    ui_refs['loot_lookback_days_custom'] = ui.input(
+                                        label='Loot Lookback Days',
+                                        value=str(config.get_loot_lookback_days()),
+                                        on_change=save_loot_lookback_custom
+                                    ).classes('w-full max-w-xs')
+                                    ui.label('Number of days to consider for recent loot history.').classes('text-xs text-gray-500')
+
+                                elif metric_id == "parses":
+                                    def on_zone_change_custom(e):
+                                        zone_id = e.value
+                                        if zone_id:
+                                            zone_options = get_zone_options_for_version()
+                                            zone_label = zone_options.get(zone_id, "")
+                                            config.set_parse_zone_id(zone_id)
+                                            config.set_parse_zone_label(zone_label)
+                                        else:
+                                            config.set_parse_zone_id(None)
+                                            config.set_parse_zone_label("")
+
+                                    ui_refs['parse_zone_select_custom'] = ui.select(
+                                        label='Parse Zone',
+                                        options=get_zone_options_for_version(),
+                                        value=config.get_parse_zone_id() if config.get_parse_zone_id() in get_zone_options_for_version() else None,
+                                        on_change=on_zone_change_custom
+                                    ).classes('w-full max-w-xs')
+
+                                    ui_refs['parse_filter_select_custom'] = ui.select(
+                                        label='Fetch Parses For',
+                                        options=PARSE_FILTER_OPTIONS,
+                                        value=config.get_parse_filter_mode(),
+                                        on_change=lambda e: config.set_parse_filter_mode(e.value)
+                                    ).classes('w-full max-w-xs')
+
+                                    def refresh_parse_zone_options_custom():
+                                        new_options = get_zone_options_for_version()
+                                        ui_refs['parse_zone_select_custom'].options = new_options
+                                        current_value = ui_refs['parse_zone_select_custom'].value
+                                        if current_value not in new_options:
+                                            ui_refs['parse_zone_select_custom'].value = None
+                                            config.set_parse_zone_id(None)
+                                            config.set_parse_zone_label("")
+                                        ui_refs['parse_zone_select_custom'].update()
+
+                                    register_game_version_callback(refresh_parse_zone_options_custom)
+
+        # Custom Policy Editor card
+        with ui.card().classes('w-full p-4 mb-4'):
+            with ui.row().classes('w-full items-center gap-2 mb-2'):
+                ui.icon('edit_note')
+                ui.label('Custom Loot Policy').classes('text-lg font-semibold')
+
+            ui.label('Write your custom guild loot policy below. This will be sent to the LLM.').classes('text-sm text-gray-500 mb-4')
+
+            policy_editor = ui.textarea(
+                label='Guild Loot Policy',
+                value=load_policy_content()
+            ).classes('w-full').props('rows=8 outlined counter')
+            ui_refs['policy_editor'] = policy_editor
+
+            # Warning label for excessive length
+            warning_label = ui.label('').classes('text-xs')
+
+            def update_policy_warning():
+                char_count = len(policy_editor.value or '')
+                if char_count > 600:
+                    warning_label.text = f'Warning: Excessive policy length ({char_count} chars) can reduce AI response quality and increase API costs.'
+                    warning_label.classes(replace='text-xs text-orange-500')
+                else:
+                    warning_label.text = ''
+                    warning_label.classes(replace='text-xs')
+
+            policy_editor.on('update:model-value', lambda: update_policy_warning())
+            update_policy_warning()
+
+            ui.button(
+                'Save Policy',
+                icon='save',
+                on_click=lambda: save_policy_content(policy_editor.value)
+            ).classes('mt-2')
+
+    # Set initial visibility based on saved policy mode
+    is_simple_mode = config.get_policy_mode() == 'simple'
+    simple_mode_container.set_visibility(is_simple_mode)
+    custom_mode_container.set_visibility(not is_simple_mode)
+
+    # Register callbacks for Currently Equipped changes (applies to both modes)
+    register_currently_equipped_callback(update_equipped_dependent_metrics)
+    register_currently_equipped_callback(update_custom_equipped_dependent_metrics)
 
     # ==================== SECTION 1.5: Currently Equipped ====================
     with ui.card().classes('w-full p-4 mb-4'):
@@ -597,49 +1062,15 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                     on_change=on_api_source_change
                 )
 
-            # Sub-options container (shown when currently equipped is enabled)
-            with ui.element('div').classes('pl-10') as sub_options_container:
-                # ilvl comparisons toggle
-                with ui.column().classes('w-full gap-1'):
-                    def on_ilvl_toggle(e):
-                        print(f"[DEBUG] on_ilvl_toggle called with value: {e.value}")
-                        config.set_show_ilvl_comparisons(e.value)
-                        print(f"[DEBUG] After set, config.get_show_ilvl_comparisons() = {config.get_show_ilvl_comparisons()}")
-                        notify_metric_change()
-
-                    ui_refs['show_ilvl_comparisons'] = ui.switch(
-                        'Enable ilvl comparisons',
-                        value=config.get_show_ilvl_comparisons(),
-                        on_change=on_ilvl_toggle
-                    )
-                    ui.label('Consider the difference in ilvl when making LC decisions.').classes('text-xs text-gray-500 ml-10')
-
-                # Tier token counts toggle
-                with ui.column().classes('w-full gap-1'):
-                    def on_tier_toggle(e):
-                        print(f"[DEBUG] on_tier_toggle called with value: {e.value}")
-                        config.set_show_tier_token_counts(e.value)
-                        print(f"[DEBUG] After set, config.get_show_tier_token_counts() = {config.get_show_tier_token_counts()}")
-                        notify_metric_change()
-
-                    ui_refs['show_tier_token_counts'] = ui.switch(
-                        'Enable tier token counts',
-                        value=config.get_show_tier_token_counts(),
-                        on_change=on_tier_toggle
-                    )
-                    ui.label('Count the number of tier tokens the character has equipped.').classes('text-xs text-gray-500 ml-10')
-
             # Initialize visibility based on saved config
             initial_equipped_enabled = config.get_currently_equipped_enabled()
             api_source_container.set_visibility(initial_equipped_enabled)
-            sub_options_container.set_visibility(initial_equipped_enabled)
 
             def on_currently_equipped_change(e):
                 print(f"[DEBUG] on_currently_equipped_change called with value: {e.value}")
                 config.set_currently_equipped_enabled(e.value)
                 print(f"[DEBUG] After set, config.get_currently_equipped_enabled() = {config.get_currently_equipped_enabled()}")
                 api_source_container.set_visibility(e.value)
-                sub_options_container.set_visibility(e.value)
                 notify_metric_change()
                 notify_currently_equipped_change()
 

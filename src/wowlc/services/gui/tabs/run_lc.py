@@ -4,9 +4,8 @@ Contains Zone Selection, Run/Cancel controls, Progress tracking, and Results dis
 Supports two modes: Single Item (for quick lookups) and Raid Zone (batch processing).
 """
 import asyncio
-import os
 from nicegui import ui, run
-from ..shared import config, register_metric_change_callback, register_connection_save_callback, register_game_version_callback, register_currently_equipped_callback, POLICY_PATH
+from ..shared import config, register_connection_save_callback, register_game_version_callback, register_currently_equipped_callback
 from wowlc.tools.fetching_current_items import cache_all_raiders_gear, get_cache_info
 from ...lc_processor import (
     LootCouncilProcessor,
@@ -41,41 +40,8 @@ MODE_SINGLE_ITEM = "Single Item"
 MODE_RAID_ZONE = "Raid Zone"
 LC_MODES = [MODE_SINGLE_ITEM, MODE_RAID_ZONE]
 
-# Policy mode options
-POLICY_SIMPLE = "Simple"
-POLICY_CUSTOM = "Custom"
-POLICY_MODES = [POLICY_SIMPLE, POLICY_CUSTOM]
-
-# Metric display labels
-METRIC_LABELS = {
-    "attendance": "Attendance",
-    "recent_loot": "Recent Loot",
-    "wishlist_position": "Wishlist Position",
-    "alt_status": "Alt Status",
-    "parses": "Parses",
-    "ilvl_comparison": "ilvl Comparison",
-    "tier_token_counts": "Tier Token Counts",
-    "last_item_received": "Last Item Received"
-}
-
-# Rule templates for preview (should match get_item_candidates.py)
-METRIC_RULE_TEMPLATES = {
-    "attendance": "Give preference to raiders with higher attendance.",
-    "recent_loot": "Give preference to raiders who received fewer items recently.",
-    "wishlist_position": "Give preference to raiders who want this item more.",
-    "alt_status": "Give preference to main characters over alts.",
-    "parses": "Give preference to raiders with better parses.",
-    "ilvl_comparison": "Give preference to raiders with a larger ilvl difference.",
-    "tier_token_counts": "Prioritise raiders who are closer to completing 2 or 4 set tier bonus.",
-    "last_item_received": "Give preference to raiders who received an item for this slot longest ago."
-}
-
-
 # Module-level state for cancellation
 _cancel_requested = False
-
-# Policy file constants
-POLICY_MAX_CHARS = 500
 
 # Stale cache threshold (in hours)
 STALE_CACHE_THRESHOLD_HOURS = 24
@@ -141,35 +107,6 @@ def check_stale_cache_warning():
             type='warning',
             multi_line=True
         )
-
-
-def ensure_policy_file():
-    """Ensure policy file exists, create if not."""
-    if not os.path.exists(POLICY_PATH):
-        os.makedirs(os.path.dirname(POLICY_PATH), exist_ok=True)
-        with open(POLICY_PATH, 'w', encoding='utf-8') as f:
-            f.write('')
-
-
-def load_policy_content():
-    """Load policy content from markdown file."""
-    ensure_policy_file()
-    try:
-        with open(POLICY_PATH, 'r', encoding='utf-8') as f:
-            return f.read()
-    except IOError:
-        return ''
-
-
-def save_policy_content(policy_text):
-    """Save policy content to markdown file."""
-    try:
-        os.makedirs(os.path.dirname(POLICY_PATH), exist_ok=True)
-        with open(POLICY_PATH, 'w', encoding='utf-8') as f:
-            f.write(policy_text)
-        ui.notify('Policy saved successfully', type='positive')
-    except IOError as e:
-        ui.notify(f'Error saving policy: {str(e)}', type='negative')
 
 
 def reset_cancel_flag():
@@ -595,236 +532,10 @@ def create_run_lc_tab(connection_refs: dict, game_version_toggle):
                     value=MODE_SINGLE_ITEM
                 ).classes('')
 
-            # Policy mode toggle row
-            with ui.row().classes('items-center justify-between w-full mb-2'):
-                ui.label('Policy Mode').classes('text-sm font-semibold')
-                ui_refs['policy_mode'] = ui.toggle(
-                    POLICY_MODES,
-                    value=POLICY_SIMPLE if config.get_policy_mode() == "simple" else POLICY_CUSTOM
-                ).classes('')
-
-            # Simple mode container with sortable metrics
-            simple_mode_container = ui.column().classes('w-full')
-            ui_refs['simple_mode_container'] = simple_mode_container
-
-            with simple_mode_container:
-                ui.label('Drag metrics to set priority order (top = highest priority):').classes('text-xs text-gray-500 mb-2')
-
-                def get_enabled_metrics():
-                    """Get dict of which metrics are enabled."""
-                    currently_equipped_enabled = config.get_currently_equipped_enabled()
-                    show_ilvl = config.get_show_ilvl_comparisons()
-                    show_tier = config.get_show_tier_token_counts()
-                    print(f"[DEBUG] get_enabled_metrics: currently_equipped={currently_equipped_enabled}, show_ilvl={show_ilvl}, show_tier={show_tier}")
-                    result = {
-                        "attendance": config.get_show_attendance(),
-                        "recent_loot": config.get_show_recent_loot(),
-                        "wishlist_position": config.get_show_wishlist_position(),
-                        "alt_status": config.get_show_alt_status() and config.get_mains_over_alts(),
-                        "parses": config.get_show_parses(),
-                        # ilvl_comparison requires currently equipped AND show_ilvl_comparisons
-                        "ilvl_comparison": currently_equipped_enabled and show_ilvl,
-                        # tier_token_counts requires currently equipped AND show_tier_token_counts
-                        # Note: The actual rule will only appear for tier tokens (handled in get_item_candidates.py)
-                        "tier_token_counts": currently_equipped_enabled and show_tier,
-                        "last_item_received": config.get_show_last_item_received(),
-                    }
-                    print(f"[DEBUG] get_enabled_metrics result: {result}")
-                    return result
-
-                def get_clean_metric_order():
-                    """Get metric order, deduplicating and adding any missing metrics."""
-                    # All known metrics that should be in the order
-                    all_metrics = ["attendance", "recent_loot", "wishlist_position", "alt_status", "parses", "ilvl_comparison", "tier_token_counts", "last_item_received"]
-
-                    current_order = config.get_metric_order()
-                    seen = set()
-                    clean_order = []
-
-                    # Add existing metrics in their saved order (deduplicating)
-                    for m in current_order:
-                        if m not in seen:
-                            seen.add(m)
-                            clean_order.append(m)
-
-                    # Add any missing metrics at the end
-                    for m in all_metrics:
-                        if m not in seen:
-                            print(f"[DEBUG] Adding missing metric to order: {m}")
-                            clean_order.append(m)
-                            seen.add(m)
-
-                    # Save if order changed
-                    if clean_order != current_order:
-                        print(f"[DEBUG] Fixing metric_order: {current_order} -> {clean_order}")
-                        config.set_metric_order(clean_order)
-
-                    return clean_order
-
-                @ui.refreshable
-                def metrics_list():
-                    """Refreshable metrics list using ui.refreshable pattern."""
-                    enabled = get_enabled_metrics()
-                    current_order = get_clean_metric_order()
-                    should_display = [m for m in current_order if enabled.get(m, False)]
-
-                    print(f"[DEBUG] metrics_list rendering: {should_display}")
-
-                    with ui.column().classes('w-full sortable-metrics'):
-                        for metric_id in should_display:
-                            with ui.card().classes('w-full cursor-grab metric-item p-2 mb-1') as card:
-                                card._props['data-id'] = metric_id
-                                with ui.row().classes('items-center gap-2 w-full'):
-                                    ui.icon('drag_indicator').classes('text-gray-400')
-                                    ui.label(METRIC_LABELS.get(metric_id, metric_id)).classes('flex-1 text-sm')
-
-                @ui.refreshable
-                def rule_preview():
-                    """Refreshable rule preview."""
-                    current_order = get_clean_metric_order()
-                    enabled = get_enabled_metrics()
-
-                    with ui.column().classes('w-full bg-gray-100 dark:bg-gray-800 p-3 rounded mt-3'):
-                        ui.label('Generated Rules Preview:').classes('text-xs font-semibold mb-1')
-                        rule_num = 1
-                        for metric_id in current_order:
-                            if enabled.get(metric_id, False):
-                                rule_text = METRIC_RULE_TEMPLATES.get(metric_id, "")
-                                ui.label(f"RULE {rule_num}: {rule_text}").classes('text-xs')
-                                rule_num += 1
-                        if rule_num == 1:
-                            ui.label("No metrics enabled. Enable metrics in Council Settings tab.").classes('text-xs text-gray-500')
-
-                def refresh_metrics_list():
-                    """Refresh both the metrics list and rule preview."""
-                    print("[DEBUG] refresh_metrics_list called")
-                    metrics_list.refresh()
-                    rule_preview.refresh()
-
-                def on_metric_reorder(new_order):
-                    """Handle metric reordering from drag-drop."""
-                    print(f"[DEBUG] on_metric_reorder called with: {new_order}")
-
-                    enabled = get_enabled_metrics()
-                    old_order = get_clean_metric_order()
-                    disabled_metrics = [m for m in old_order if not enabled.get(m, False)]
-
-                    # Deduplicate
-                    seen = set()
-                    full_order = []
-                    for m in list(new_order) + disabled_metrics:
-                        if m not in seen:
-                            seen.add(m)
-                            full_order.append(m)
-
-                    print(f"[DEBUG] on_metric_reorder saving: {full_order}")
-                    config.set_metric_order(full_order)
-                    rule_preview.refresh()
-
-                # Render the refreshable components
-                metrics_list()
-                rule_preview()
-
-                # Setup SortableJS for drag-drop
-                ui.add_body_html('''
-                <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-                <script>
-                function initSortableMetrics() {
-                    const container = document.querySelector('.sortable-metrics');
-                    if (container && !container._sortableInit) {
-                        container._sortableInit = true;
-                        Sortable.create(container, {
-                            animation: 150,
-                            ghostClass: 'opacity-50',
-                            handle: '.metric-item',
-                            onEnd: function(evt) {
-                                const items = Array.from(container.querySelectorAll('.metric-item'))
-                                    .map(el => el.dataset.id)
-                                    .filter(id => id);
-                                if (items.length > 0) {
-                                    emitEvent('metric-reorder', {order: items});
-                                }
-                            }
-                        });
-                    }
-                }
-                // Initialize on load and observe for dynamic content
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', function() {
-                        setTimeout(initSortableMetrics, 500);
-                    });
-                } else {
-                    setTimeout(initSortableMetrics, 500);
-                }
-                // Re-init when content changes
-                new MutationObserver(function() {
-                    setTimeout(initSortableMetrics, 100);
-                }).observe(document.body, {childList: true, subtree: true});
-                </script>
-                ''')
-
-                ui.on('metric-reorder', lambda e: on_metric_reorder(e.args.get('order', [])))
-
-                # Store refresh function for external use
-                ui_refs['refresh_metrics_list'] = refresh_metrics_list
-
-                # Register for cross-tab notifications when metrics change in Council Settings
-                register_metric_change_callback(refresh_metrics_list)
-
-            # Custom mode container with policy editor
-            custom_mode_container = ui.column().classes('w-full')
-            ui_refs['custom_mode_container'] = custom_mode_container
-            custom_mode_container.set_visibility(False)
-
-            with custom_mode_container:
-                ui.label('Edit your custom guild loot policy below:').classes('text-xs text-gray-500 mb-2')
-
-                policy_editor = ui.textarea(
-                    label='Guild Loot Policy',
-                    value=load_policy_content()
-                ).classes('w-full').props('rows=8 outlined counter')
-                ui_refs['policy_editor'] = policy_editor
-
-                # Warning label for excessive length
-                warning_label = ui.label('').classes('text-xs')
-
-                def update_policy_warning():
-                    char_count = len(policy_editor.value or '')
-                    if char_count > 600:
-                        warning_label.text = f'Warning: Excessive policy length ({char_count} chars) can reduce AI response quality and increase API costs.'
-                        warning_label.classes(replace='text-xs text-orange-500')
-                    else:
-                        warning_label.text = ''
-                        warning_label.classes(replace='text-xs')
-
-                policy_editor.on('update:model-value', lambda: update_policy_warning())
-                update_policy_warning()  # Initial check
-
-                ui.button(
-                    'Save Policy',
-                    icon='save',
-                    on_click=lambda: save_policy_content(ui_refs['policy_editor'].value)
-                ).classes('mt-2')
-
-            # Policy mode toggle handler
-            def on_policy_mode_change(e):
-                mode = e.sender.value
-                if mode == POLICY_SIMPLE:
-                    config.set_policy_mode("simple")
-                    simple_mode_container.set_visibility(True)
-                    custom_mode_container.set_visibility(False)
-                    refresh_metrics_list()
-                else:
-                    config.set_policy_mode("custom")
-                    simple_mode_container.set_visibility(False)
-                    custom_mode_container.set_visibility(True)
-
-            ui_refs['policy_mode'].on('update:model-value', on_policy_mode_change)
-
-            # Set initial visibility based on saved config
-            if config.get_policy_mode() == "custom":
-                simple_mode_container.set_visibility(False)
-                custom_mode_container.set_visibility(True)
+            # Policy settings message
+            with ui.row().classes('items-center gap-2 mt-2'):
+                ui.icon('info').classes('text-blue-500')
+                ui.label('Policy settings are configured in the Settings tab.').classes('text-sm')
 
         # === CACHE RAIDER GEAR SECTION ===
         cache_section = ui.card().classes('w-full p-4 mb-4')

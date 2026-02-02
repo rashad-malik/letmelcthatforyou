@@ -475,8 +475,11 @@ class ConfigManager:
         self._save_config()
 
     def get_metric_order(self) -> List[str]:
-        """Get the ordered list of metrics for simple policy mode."""
-        default_order = ["attendance", "recent_loot", "wishlist_position", "alt_status", "parses", "ilvl_comparison", "tier_token_counts"]
+        """Get the ordered list of metrics for simple policy mode (Decision Priorities)."""
+        default_order = [
+            "wishlist_position", "attendance", "recent_loot", "ilvl_comparison",
+            "parses", "tank_priority", "raider_notes", "last_item_received", "tier_token_counts"
+        ]
         return self._config.get("player_metrics", {}).get("metric_order", default_order)
 
     def set_metric_order(self, order: List[str]) -> None:

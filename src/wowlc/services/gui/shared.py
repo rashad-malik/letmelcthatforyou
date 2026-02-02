@@ -163,9 +163,10 @@ def clear_currently_equipped_callbacks():
 
 def register_currently_equipped_callback(callback):
     """Register a callback to be called when currently equipped settings change."""
-    # Clear existing callbacks first to avoid duplicates on page reload
-    clear_currently_equipped_callbacks()
-    _currently_equipped_callbacks.append(callback)
+    # Note: Unlike other callbacks, we support multiple callbacks here
+    # (Simple mode + Custom mode both need to update their checkboxes)
+    if callback not in _currently_equipped_callbacks:
+        _currently_equipped_callbacks.append(callback)
 
 
 def notify_currently_equipped_change():

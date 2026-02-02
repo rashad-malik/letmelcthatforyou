@@ -803,11 +803,11 @@ def get_guild_policy_summary() -> str:
 
 
 # Rule templates for simple policy mode
+# Note: alt_status is handled separately in IMPORTANT CONTEXT section, not in policy rules
 METRIC_RULE_TEMPLATES = {
     "attendance": "Give preference to raiders with higher attendance percentage.",
     "recent_loot": "Give preference to raiders who have received fewer items recently.",
     "wishlist_position": "Give preference to raiders who ranked this item higher on their wishlist (lower position = more desired).",
-    "alt_status": "Give preference to main characters over alt characters.",
     "parses": "Give preference to raiders with better parse performance.",
     "ilvl_comparison": "Give preference to raiders with a larger ilvl difference.",
     "tier_token_counts": "Prioritise raiders who are closer to completing 2 or 4 set tier bonus.",
@@ -837,7 +837,6 @@ def generate_simple_policy_rules() -> str:
         "attendance": config.get_show_attendance(),
         "recent_loot": config.get_show_recent_loot(),
         "wishlist_position": config.get_show_wishlist_position(),
-        "alt_status": config.get_show_alt_status() and config.get_mains_over_alts(),
         "parses": config.get_show_parses(),
         # ilvl comparison: requires currently equipped AND show_ilvl_comparisons
         "ilvl_comparison": currently_equipped_enabled and config.get_show_ilvl_comparisons(),
@@ -853,7 +852,7 @@ def generate_simple_policy_rules() -> str:
             rules.append(f"RULE {rule_num}: {METRIC_RULE_TEMPLATES[metric]}")
             rule_num += 1
 
-    return "\n".join(rules) if rules else "No priority rules configured."
+    return "\n".join(rules) if rules else "No additional rules configured."
 
 
 
@@ -1136,11 +1135,13 @@ def get_item_candidates_prompt(
         tank_priority_enabled = config.get_tank_priority()
         if tank_priority_enabled:
             prompt_lines.append("Always prioritise tank-role characters for any mainspec items.")
-            prompt_lines.append("")
+
+        # Mains over alts rule (when alts are shown and mains priority is enabled)
+        if config.get_show_alt_status() and config.get_mains_over_alts():
+            prompt_lines.append("Give preference to main characters over alt characters.")
 
         if config.get_policy_mode() == "simple":
             prompt_lines.append("Apply these rules in STRICT ORDER (Rule 1 = highest priority):")
-            prompt_lines.append("")
             prompt_lines.append(generate_simple_policy_rules())
         else:
             prompt_lines.append(get_guild_policy_summary())
