@@ -229,15 +229,16 @@ A heartfelt thank you to **[Lemmings19](https://github.com/Lemmings19)** for cre
 This project also wouldn't be possible without these tools and platforms:
 
 - **[WarcraftLogs](https://www.warcraftlogs.com/)** - The gold standard for WoW raid logging and performance analysis
-- **[Blizzard Entertainment](https://develop.battle.net/)** - For WoW Classic and the Game Data APIs
+- **[Blizzard Entertainment](https://develop.battle.net/)** - For WoW Classic APIs
 - **[Nexus-Devs wow-classic-items](https://github.com/nexus-devs/wow-classic-items)** - Comprehensive WoW Classic item database
-- **[LiteLLM](https://github.com/BerriAI/litellm)** - Unified interface making multi-provider LLM support seamless
+- **[LiteLLM](https://github.com/BerriAI/litellm)** - Connects to 10+ AI providers and provides useful tools such as token counts and cost estimates
+- **[OpenRouter](https://openrouter.ai/)** - Model metadata API for human-readable model names
 - **[NiceGUI](https://nicegui.io/)** - Python-based browser GUI framework
 - **[Astral UV](https://github.com/astral-sh/uv)** - Python package management
 
 ### Community
 
-Finally, a huge thank you to my guildies from **[Off Topic](https://classic.warcraftlogs.com/guild/id/602305)**, and to my friends [adam-tj](https://github.com/adam-tj) and **Koncker** for helping me test and brainstorm solutions for this app.
+Finally, a huge thank you to my guildies from **[Off Topic](https://classic.warcraftlogs.com/guild/id/602305)**, and to my friends **[adam-tj](https://github.com/adam-tj)** and **Koncker** for helping me test and brainstorm solutions for this app.
 
 ---
 
