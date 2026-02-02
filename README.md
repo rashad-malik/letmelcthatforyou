@@ -98,19 +98,18 @@ You'll need:
 
 1. **Launch the application**
 2. **Select your game version** - Use the toggle at the top to choose between Era and TBC Anniversary
-3. **Go to "Core Connections" tab**:
+3. **Click the "WoW Server" button in the header** - Select your server region and realm
+4. **Go to "Core Connections" tab**:
    - Enter your TMB Guild ID
    - Enter your WarcraftLogs Client ID and Secret
    - Click "Authenticate TMB" to log in via Discord
    - Select your LLM provider and enter your API key
-4. **Go to "Settings" tab**:
-   - Select your server region and realm
-   - Configure which player metrics to include
-5. **Go to "Run LC" tab**:
+5. **Go to "Settings" tab** - Configure which player metrics to include
+6. **Go to "Run LC" tab**:
    - Select a raid zone
    - Choose Single Item or Raid Zone mode
    - Click "Run Loot Council"
-6. **Review results** - Each item shows the AI's recommendation with reasoning
+7. **Review results** - Each item shows the AI's recommendation with reasoning
 
 ---
 

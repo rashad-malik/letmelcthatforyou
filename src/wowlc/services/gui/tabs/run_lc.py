@@ -522,20 +522,21 @@ def create_run_lc_tab(connection_refs: dict, game_version_toggle):
     content_container = ui.column().classes('w-full')
 
     with content_container:
-        # Combined Mode & Policy Section
+        # LC Mode Section
         with ui.card().classes('w-full p-4 mb-4'):
-            # Mode toggle row
-            with ui.row().classes('items-center justify-between w-full mb-4'):
-                ui.label('Mode').classes('text-sm font-semibold')
-                ui_refs['lc_mode'] = ui.toggle(
-                    LC_MODES,
-                    value=MODE_SINGLE_ITEM
-                ).classes('')
+            # Header with icon
+            with ui.row().classes('w-full items-center gap-2 mb-2'):
+                ui.icon('swap_horiz')
+                ui.label('LC Mode').classes('text-lg font-semibold')
 
-            # Policy settings message
-            with ui.row().classes('items-center gap-2 mt-2'):
-                ui.icon('info').classes('text-blue-500')
-                ui.label('Policy settings are configured in the Settings tab.').classes('text-sm')
+            # Description
+            ui.label('Single Item: Quick LC for one item. Raid Zone: Batch LC for all items in a raid.').classes('text-sm text-gray-500 mb-4')
+
+            # Left-aligned toggle
+            ui_refs['lc_mode'] = ui.toggle(
+                LC_MODES,
+                value=MODE_SINGLE_ITEM
+            ).classes('text-base')
 
         # === CACHE RAIDER GEAR SECTION ===
         cache_section = ui.card().classes('w-full p-4 mb-4')
@@ -599,8 +600,16 @@ def create_run_lc_tab(connection_refs: dict, game_version_toggle):
                 # Display source label (Blizzard or WCL)
                 source_label = "Blizzard" if api_source == "blizzard" else "WCL"
 
-                ui_refs['cache_status_icon'].name = 'check_circle'
-                ui_refs['cache_status_icon'].classes(replace='text-green-500')
+                # Check if cache is stale
+                is_stale = age_hours is not None and age_hours >= STALE_CACHE_THRESHOLD_HOURS
+
+                if is_stale:
+                    ui_refs['cache_status_icon'].name = 'schedule'
+                    ui_refs['cache_status_icon'].classes(replace='text-amber-500')
+                else:
+                    ui_refs['cache_status_icon'].name = 'check_circle'
+                    ui_refs['cache_status_icon'].classes(replace='text-green-500')
+
                 ui_refs['cache_status_label'].text = f"Cache ({source_label}): {raider_count} raiders, {age_str}"
             else:
                 ui_refs['cache_status_icon'].name = 'warning'

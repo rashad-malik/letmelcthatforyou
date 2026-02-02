@@ -29,10 +29,10 @@ def main_page():
 
                     # Game version toggle
                     initial_version = config.get_wcl_client_version()
-                    if initial_version not in ['Era', 'TBC Anniversary']:
-                        initial_version = 'Era'
+                    if initial_version not in ['Era (WIP)', 'TBC Anniversary']:
+                        initial_version = 'Era (WIP)'
                     game_version_toggle = ui.toggle(
-                        ['Era', 'TBC Anniversary'],
+                        ['Era (WIP)', 'TBC Anniversary'],
                         value=initial_version
                     ).props('dense')
 

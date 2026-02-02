@@ -5,6 +5,7 @@ Handles TMB authentication, WCL API, Blizzard API, and LLM configuration.
 from nicegui import ui
 import asyncio
 import requests
+import webbrowser
 from ..shared import (
     config,
     notify_tmb_auth_change,
@@ -305,10 +306,14 @@ def create_connections_tab():
             ui.icon('groups')
             ui.label("TMB (That's My BIS)").classes('text-lg font-semibold')
 
-        ui.label(
-            "Connect to That's My BIS to access guild wishlists, loot history, and raider profiles. "
-            "Enter your Guild ID and authenticate to establish a session."
-        ).classes('text-sm text-gray-500 mb-4')
+        with ui.column().classes('gap-1 mb-4'):
+            ui.label(
+                "Connect to That's My BIS to access guild wishlists, loot history, and raider profiles."
+            ).classes('text-sm text-gray-500')
+            with ui.row().classes('text-sm text-gray-500 flex-wrap items-baseline gap-1'):
+                ui.label("Find your Guild ID in your TMB URL (e.g.,")
+                ui.html("thatsmybis.com/<b>1234</b>/my-guild/...").classes('font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded')
+                ui.label(") and authenticate to establish a session.")
 
         ui_refs['tmb_guild_id'] = ui.input(
             label='TMB Guild ID',
@@ -392,10 +397,16 @@ def create_connections_tab():
             ui.icon('assessment')
             ui.label('WarcraftLogs API').classes('text-lg font-semibold')
 
-        ui.label(
-            "Connect to WarcraftLogs to fetch player parse data and combat logs. "
-            "Create an API client at warcraftlogs.com/api/clients to get your credentials."
-        ).classes('text-sm text-gray-500 mb-4')
+        with ui.column().classes('gap-1 mb-4'):
+            ui.label(
+                "Connect to WarcraftLogs to fetch player parse data and combat logs."
+            ).classes('text-sm text-gray-500')
+            with ui.row().classes('text-sm text-gray-500 flex-wrap items-baseline gap-1'):
+                ui.label("Create an API client at")
+                ui.label('warcraftlogs.com/api/clients').classes(
+                    'text-blue-600 dark:text-blue-400 cursor-pointer hover:underline'
+                ).on('click', lambda: webbrowser.open('https://www.warcraftlogs.com/api/clients'))
+                ui.label("to get your credentials.")
 
         ui_refs['wcl_client_id'] = ui.input(
             label='WCL Client ID',
@@ -489,10 +500,16 @@ def create_connections_tab():
             ui.icon('sports_esports')
             ui.label('Blizzard API').classes('text-lg font-semibold')
 
-        ui.label(
-            "Connect to the Blizzard API to fetch realm lists and item data. "
-            "Create an API client at develop.battle.net to get your credentials."
-        ).classes('text-sm text-gray-500 mb-4')
+        with ui.column().classes('gap-1 mb-4'):
+            ui.label(
+                "Connect to the Blizzard API to fetch realm lists and item data."
+            ).classes('text-sm text-gray-500')
+            with ui.row().classes('text-sm text-gray-500 flex-wrap items-baseline gap-1'):
+                ui.label("Create an API client at")
+                ui.label('develop.battle.net/access/clients').classes(
+                    'text-blue-600 dark:text-blue-400 cursor-pointer hover:underline'
+                ).on('click', lambda: webbrowser.open('https://develop.battle.net/access/clients'))
+                ui.label("to get your credentials.")
 
         ui_refs['blizzard_client_id'] = ui.input(
             label='Blizzard Client ID',
