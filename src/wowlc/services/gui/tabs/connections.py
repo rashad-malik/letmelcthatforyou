@@ -312,7 +312,7 @@ def create_connections_tab():
             ).classes('text-sm text-gray-500')
             with ui.row().classes('text-sm text-gray-500 flex-wrap items-baseline gap-1'):
                 ui.label("Find your Guild ID in your TMB URL (e.g.,")
-                ui.html("thatsmybis.com/<b>1234</b>/my-guild/...").classes('font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded')
+                ui.html("thatsmybis.com/<b>1234</b>/my-guild/...", sanitize=False).classes('font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded')
                 ui.label(") and authenticate to establish a session.")
 
         ui_refs['tmb_guild_id'] = ui.input(
