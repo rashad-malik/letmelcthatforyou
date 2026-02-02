@@ -246,6 +246,10 @@ class PathManager:
         """Get path to Nexus items cache."""
         return self._appdata_dir / "cache" / "nexus_items_cache.json"
 
+    def get_openrouter_models_cache_path(self) -> Path:
+        """Get path to OpenRouter models display name cache."""
+        return self._appdata_dir / "cache" / "openrouter_models.json"
+
     def get_app_config_path(self) -> Path:
         """Get path to main application config file in AppData."""
         return self._appdata_dir / "config.json"

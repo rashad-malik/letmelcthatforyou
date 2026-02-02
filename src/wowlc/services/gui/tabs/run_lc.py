@@ -14,6 +14,7 @@ from ...lc_processor import (
     TokenUsage,
     HAS_LITELLM,
 )
+from ...llm_providers import get_display_name
 from wowlc.tools.get_item_candidates import get_zone_items
 from .connections import check_connections_configured
 
@@ -262,11 +263,11 @@ def create_decision_card(decision: LootDecision, show_debug: bool = False) -> ui
                             ui.label('Estimated Cost:').classes('text-xs text-gray-500')
                             ui.label(f'${tu.estimated_cost:.6f}').classes('text-sm font-mono ml-2')
 
-                    # Model name
+                    # Model name (with pretty display name)
                     if tu.model_name:
                         with ui.row().classes('mt-1'):
                             ui.label('Model:').classes('text-xs text-gray-500')
-                            ui.label(tu.model_name).classes('text-xs font-mono ml-2 text-gray-400')
+                            ui.label(get_display_name(tu.model_name)).classes('text-xs font-mono ml-2 text-gray-400')
 
     return card
 
