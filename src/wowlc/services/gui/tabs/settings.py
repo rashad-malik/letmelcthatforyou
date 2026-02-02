@@ -1235,9 +1235,7 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
             api_source_container.set_visibility(initial_equipped_enabled)
 
             def on_currently_equipped_change(e):
-                print(f"[DEBUG] on_currently_equipped_change called with value: {e.value}")
                 config.set_currently_equipped_enabled(e.value)
-                print(f"[DEBUG] After set, config.get_currently_equipped_enabled() = {config.get_currently_equipped_enabled()}")
                 api_source_container.set_visibility(e.value)
                 notify_metric_change()
                 notify_currently_equipped_change()

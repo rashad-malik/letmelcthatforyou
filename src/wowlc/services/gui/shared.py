@@ -52,21 +52,15 @@ def register_metric_change_callback(callback):
     # Clear existing callbacks first to avoid duplicates on page reload
     clear_metric_change_callbacks()
     _metric_change_callbacks.append(callback)
-    print(f"[DEBUG] Registered metric change callback, total callbacks: {len(_metric_change_callbacks)}")
 
 
 def notify_metric_change():
     """Notify all registered callbacks that metrics have changed."""
-    print(f"[DEBUG] notify_metric_change called, {len(_metric_change_callbacks)} callbacks registered")
     for callback in _metric_change_callbacks:
         try:
-            print(f"[DEBUG] Calling callback: {callback}")
             callback()
-            print(f"[DEBUG] Callback completed successfully")
-        except Exception as e:
-            print(f"[DEBUG] Callback error: {e}")
-            import traceback
-            traceback.print_exc()
+        except Exception:
+            pass  # Silently ignore errors in callbacks
 
 
 def clear_tmb_auth_callbacks():

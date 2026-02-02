@@ -709,7 +709,6 @@ def create_run_lc_tab(connection_refs: dict, game_version_toggle):
             # Copy to clipboard button
             def copy_to_clipboard():
                 output_text = ui_refs.get('_copy_output_text', '')
-                print(f"[DEBUG] copy_to_clipboard called, output_text length: {len(output_text) if output_text else 0}")
                 if output_text:
                     try:
                         # Use textarea fallback method - more reliable across browsers
@@ -726,13 +725,10 @@ def create_run_lc_tab(connection_refs: dict, game_version_toggle):
                             document.body.removeChild(textarea);
                         }})();'''
                         ui.run_javascript(js_code)
-                        print("[DEBUG] JavaScript execCommand copy completed")
                         ui.notify('Copied to clipboard!', type='positive')
                     except Exception as e:
-                        print(f"[DEBUG] clipboard write error: {e}")
                         ui.notify(f'Clipboard error: {e}', type='negative')
                 else:
-                    print("[DEBUG] No output text to copy")
                     ui.notify('No output to copy', type='warning')
 
             ui.button('Copy to Clipboard', icon='content_copy', on_click=copy_to_clipboard)
