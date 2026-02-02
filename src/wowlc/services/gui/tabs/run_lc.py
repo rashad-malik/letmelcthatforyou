@@ -11,6 +11,7 @@ from wowlc.tools.fetching_current_items import cache_all_raiders_gear, get_cache
 from ...lc_processor import (
     LootCouncilProcessor,
     LootDecision,
+    TokenUsage,
     HAS_LITELLM,
 )
 from wowlc.tools.get_item_candidates import get_zone_items
@@ -77,6 +78,29 @@ POLICY_MAX_CHARS = 500
 
 # Stale cache threshold (in hours)
 STALE_CACHE_THRESHOLD_HOURS = 24
+
+
+def get_token_usage_indicator(token_usage: TokenUsage) -> tuple:
+    """
+    Calculate traffic light indicator based on token usage.
+
+    Args:
+        token_usage: TokenUsage object with usage information
+
+    Returns:
+        Tuple of (icon_name, icon_color, tooltip_text)
+    """
+    if not token_usage or not token_usage.total_tokens or not token_usage.max_tokens:
+        return ('help_outline', 'text-gray-400', 'Token usage data unavailable')
+
+    usage_ratio = token_usage.total_tokens / token_usage.max_tokens
+
+    if usage_ratio < 0.5:
+        return ('check_circle', 'text-green-500', f'Token usage: {usage_ratio:.1%} of limit')
+    elif usage_ratio < 0.8:
+        return ('warning', 'text-yellow-500', f'Token usage: {usage_ratio:.1%} of limit')
+    else:
+        return ('error', 'text-red-500', f'Token usage: {usage_ratio:.1%} of limit - approaching limit!')
 
 
 def check_stale_cache_warning():
@@ -202,6 +226,47 @@ def create_decision_card(decision: LootDecision, show_debug: bool = False) -> ui
                 if decision.debug_response:
                     ui.label('Response Received:').classes('font-semibold text-sm mt-3')
                     ui.textarea(value=decision.debug_response).props('readonly outlined').classes('w-full text-xs').style('font-family: monospace; min-height: 100px;')
+
+                # Token Usage Section
+                if decision.token_usage:
+                    tu = decision.token_usage
+
+                    ui.separator().classes('my-3')
+                    with ui.row().classes('items-center gap-2 mb-2'):
+                        icon_name, icon_color, tooltip = get_token_usage_indicator(tu)
+                        with ui.element('div').tooltip(tooltip):
+                            ui.icon(icon_name).classes(icon_color)
+                        ui.label('Token Usage').classes('font-semibold text-sm')
+
+                    # Token counts grid
+                    with ui.row().classes('w-full gap-4 flex-wrap'):
+                        with ui.column().classes('gap-1'):
+                            ui.label('Prompt Tokens:').classes('text-xs text-gray-500')
+                            ui.label(f'{tu.prompt_tokens:,}' if tu.prompt_tokens else 'N/A').classes('text-sm font-mono')
+
+                        with ui.column().classes('gap-1'):
+                            ui.label('Completion Tokens:').classes('text-xs text-gray-500')
+                            ui.label(f'{tu.completion_tokens:,}' if tu.completion_tokens else 'N/A').classes('text-sm font-mono')
+
+                        with ui.column().classes('gap-1'):
+                            ui.label('Total Tokens:').classes('text-xs text-gray-500')
+                            ui.label(f'{tu.total_tokens:,}' if tu.total_tokens else 'N/A').classes('text-sm font-mono')
+
+                        with ui.column().classes('gap-1'):
+                            ui.label('Model Max:').classes('text-xs text-gray-500')
+                            ui.label(f'{tu.max_tokens:,}' if tu.max_tokens else 'N/A').classes('text-sm font-mono')
+
+                    # Cost display (if available)
+                    if tu.estimated_cost is not None:
+                        with ui.row().classes('mt-2'):
+                            ui.label('Estimated Cost:').classes('text-xs text-gray-500')
+                            ui.label(f'${tu.estimated_cost:.6f}').classes('text-sm font-mono ml-2')
+
+                    # Model name
+                    if tu.model_name:
+                        with ui.row().classes('mt-1'):
+                            ui.label('Model:').classes('text-xs text-gray-500')
+                            ui.label(tu.model_name).classes('text-xs font-mono ml-2 text-gray-400')
 
     return card
 

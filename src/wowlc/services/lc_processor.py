@@ -100,6 +100,17 @@ def get_system_prompt(
 
 
 @dataclass
+class TokenUsage:
+    """Container for API token usage information."""
+    prompt_tokens: Optional[int] = None
+    completion_tokens: Optional[int] = None
+    total_tokens: Optional[int] = None
+    max_tokens: Optional[int] = None
+    estimated_cost: Optional[float] = None
+    model_name: Optional[str] = None
+
+
+@dataclass
 class LootDecision:
     """Container for a single loot decision."""
     item_name: str
@@ -113,6 +124,8 @@ class LootDecision:
     # Debug fields for viewing API request/response
     debug_prompt: Optional[str] = None
     debug_response: Optional[str] = None
+    # Token usage information
+    token_usage: Optional[TokenUsage] = None
 
 
 class LootCouncilProcessor:
@@ -241,6 +254,45 @@ class LootCouncilProcessor:
             return self.model
         return f"{prefix}{self.model}"
 
+    def _extract_token_usage(self, response, model_string: str) -> TokenUsage:
+        """
+        Extract token usage information from a LiteLLM response.
+
+        Args:
+            response: LiteLLM completion response object
+            model_string: The model string used for the request
+
+        Returns:
+            TokenUsage object with available information
+        """
+        token_usage = TokenUsage(model_name=model_string)
+
+        try:
+            # Extract usage from response
+            if hasattr(response, 'usage') and response.usage:
+                token_usage.prompt_tokens = getattr(response.usage, 'prompt_tokens', None)
+                token_usage.completion_tokens = getattr(response.usage, 'completion_tokens', None)
+                token_usage.total_tokens = getattr(response.usage, 'total_tokens', None)
+
+            # Get max tokens for the model
+            try:
+                token_usage.max_tokens = litellm.get_max_tokens(model_string)
+            except Exception:
+                # Some models may not have max_tokens defined
+                pass
+
+            # Calculate estimated cost
+            try:
+                token_usage.estimated_cost = litellm.completion_cost(response)
+            except Exception:
+                # Cost calculation may fail for some providers
+                pass
+
+        except Exception as e:
+            logger.debug(f"Failed to extract token usage: {e}")
+
+        return token_usage
+
     def process_item(self, item_name: str, single_item_mode: bool = False) -> LootDecision:
         """
         Process a single item and return a loot decision.
@@ -269,7 +321,8 @@ class LootCouncilProcessor:
                 success=False,
                 error=prompt_result["error"],
                 debug_prompt=None,
-                debug_response=None
+                debug_response=None,
+                token_usage=None
             )
 
         # Build system prompt based on mode and enabled metrics
@@ -323,13 +376,17 @@ class LootCouncilProcessor:
 
             response_text = response.choices[0].message.content
 
+            # Extract token usage information
+            token_usage = self._extract_token_usage(response, model_string)
+
             # Parse response
             decision = self._parse_response(
                 response_text,
                 item_name,
                 prompt_result["item_slot"],
                 debug_prompt=full_prompt,
-                debug_response=response_text
+                debug_response=response_text,
+                token_usage=token_usage
             )
 
             # Record Suggestion 1 allocation for session tracking
@@ -349,7 +406,8 @@ class LootCouncilProcessor:
                 success=False,
                 error=f"Rate limit exceeded: {str(e)}",
                 debug_prompt=full_prompt,
-                debug_response=response_text
+                debug_response=response_text,
+                token_usage=None
             )
         except litellm.AuthenticationError as e:
             return LootDecision(
@@ -362,7 +420,8 @@ class LootCouncilProcessor:
                 success=False,
                 error=f"Invalid API key for {self.provider}: {str(e)}",
                 debug_prompt=full_prompt,
-                debug_response=response_text
+                debug_response=response_text,
+                token_usage=None
             )
         except litellm.APIConnectionError as e:
             return LootDecision(
@@ -375,7 +434,8 @@ class LootCouncilProcessor:
                 success=False,
                 error=f"Connection error to {self.provider}: {str(e)}",
                 debug_prompt=full_prompt,
-                debug_response=response_text
+                debug_response=response_text,
+                token_usage=None
             )
         except Exception as e:
             return LootDecision(
@@ -388,7 +448,8 @@ class LootCouncilProcessor:
                 success=False,
                 error=f"API error ({self.provider}): {str(e)}",
                 debug_prompt=full_prompt,
-                debug_response=response_text
+                debug_response=response_text,
+                token_usage=None
             )
 
     def _parse_response(
@@ -397,7 +458,8 @@ class LootCouncilProcessor:
         item_name: str,
         item_slot: Optional[str],
         debug_prompt: Optional[str] = None,
-        debug_response: Optional[str] = None
+        debug_response: Optional[str] = None,
+        token_usage: Optional[TokenUsage] = None
     ) -> LootDecision:
         """
         Parse the LLM response into a structured decision.
@@ -442,7 +504,8 @@ class LootCouncilProcessor:
             rationale=rationale,
             success=True,
             debug_prompt=debug_prompt,
-            debug_response=debug_response
+            debug_response=debug_response,
+            token_usage=token_usage
         )
 
     def process_zone(
