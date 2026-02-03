@@ -102,6 +102,18 @@ def create_dev_dialog():
             # Scrollable content area
             with ui.scroll_area().classes('w-full flex-grow'):
                 with ui.column().classes('w-full max-w-4xl mx-auto gap-4 p-4'):
+                    # Developer disclaimer banner
+                    with ui.card().classes('w-full p-4 bg-amber-100 dark:bg-amber-900 border-l-4 border-amber-500'):
+                        with ui.row().classes('items-start gap-3'):
+                            ui.icon('warning', size='md').classes('text-amber-600 dark:text-amber-400')
+                            with ui.column().classes('gap-1'):
+                                ui.label('Developer Tools Only').classes('font-bold text-amber-800 dark:text-amber-200')
+                                ui.label(
+                                    'This page is intended for developers to test and debug the application. '
+                                    'Regular users should not use these options. '
+                                    'Only modify settings here if you know what you are doing.'
+                                ).classes('text-sm text-amber-700 dark:text-amber-300')
+
                     # Developer Mode Section (flat card, no expansion)
                     with ui.card().classes('w-full p-4'):
                         with ui.row().classes('items-center gap-2 mb-2'):
@@ -130,7 +142,7 @@ def create_dev_dialog():
                         ui_refs['pyrewood_dev_mode'] = pyrewood_toggle
 
                         ui.label(
-                            'When enabled, forces Region: EU and Server: pyrewood-village regardless of General tab settings.'
+                            'When enabled, forces Region: EU and Server: pyrewood-village regardless of server settings.'
                         ).classes('text-xs text-gray-500 mt-1')
 
                         thunderstrike_toggle = ui.switch(
@@ -141,7 +153,7 @@ def create_dev_dialog():
                         ui_refs['thunderstrike_dev_mode'] = thunderstrike_toggle
 
                         ui.label(
-                            'When enabled, forces Region: EU and Server: thunderstrike regardless of General tab settings.'
+                            'When enabled, forces Region: EU and Server: thunderstrike regardless of server settings.'
                         ).classes('text-xs text-gray-500 mt-1')
 
                     # WCL Authentication Section (flat card, no expansion)
@@ -150,7 +162,7 @@ def create_dev_dialog():
                             ui.icon('key', size='sm')
                             ui.label('WCL Authentication').classes('text-lg font-semibold')
 
-                        ui.label('Authenticate with WarcraftLogs to obtain a user token for API access.').classes('mb-2')
+                        ui.label('Authenticate with WarcraftLogs to obtain a user token for API access (used for archived logs).').classes('mb-2')
 
                         wcl_auth_button = ui.button(
                             'Authenticate WCL',

@@ -23,7 +23,7 @@ Built by and for the WoW Classic community.
 - **ThatsMyBIS Integration** - Wishlist priorities, loot history, attendance records, guild item notes
 - **WarcraftLogs Integration** - Parse performance, character gear
 - **Blizzard API Integration** - Real-time character equipment data
-- **Customisable Guild Policies** - Write your own loot rules in Markdown or use simple metric-based scoring
+- **Customisable Guild Policies** - Write your own loot rules in Markdown or use simple metric-based decision priorities
 - **Comprehensive Player Metrics**:
   - Attendance percentage (configurable lookback)
   - Recent loot received (configurable lookback)
@@ -100,14 +100,14 @@ You'll need:
 2. **Select your game version** - Use the toggle at the top to choose between Era and TBC Anniversary
 3. **Click the "WoW Server" button in the header** - Select your server region and realm
 4. **Go to "Core Connections" tab**:
-   - Enter your TMB Guild ID
+   - Enter your TMB Guild ID, and authenticate your TMB session
    - Enter your WarcraftLogs Client ID and Secret
    - Click "Authenticate TMB" to log in via Discord
    - Select your LLM provider and enter your API key
 5. **Go to "Settings" tab** - Configure which player metrics to include
 6. **Go to "Run LC" tab**:
-   - Select a raid zone
    - Choose Single Item or Raid Zone mode
+   - Select an item or raid zones
    - Click "Run Loot Council"
 7. **Review results** - Each item shows the AI's recommendation with reasoning
 
@@ -116,7 +116,9 @@ You'll need:
 ## Configuration
 
 ### Game Version
-- Era or TBC Anniversary
+- Era (WIP) or TBC Anniversary
+
+> **Note:** Era functionality is still a work in progress. It should be functional, but some items (such as tier tokens) may be missing.
 
 ### Core Connections Tab
 - **ThatsMyBIS** - Guild ID and Discord authentication
@@ -190,6 +192,17 @@ AppData/Local/letmelcthatforyou/
 ├── auth/                   # Authentication tokens
 └── cache/                  # Cached raider and item data
 ```
+
+---
+
+## Future Enhancements
+
+Planned features for upcoming releases:
+
+- **BoP Gear Recipes** - Support for bind-on-pickup crafted gear and player profession considerations
+- **Extended Parse Options** - Additional parse filtering options (e.g., parses by average item level)
+- **Path Configuration** - User-configurable paths for application files and exports
+- **Custom Realm Lists** - User-defined realm lists for servers not included in the default selection
 
 ---
 

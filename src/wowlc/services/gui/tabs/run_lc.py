@@ -530,7 +530,7 @@ def create_run_lc_tab(connection_refs: dict, game_version_toggle):
                 ui.label('LC Mode').classes('text-lg font-semibold')
 
             # Description
-            ui.label('Single Item: Quick LC for one item. Raid Zone: Batch LC for all items in a raid.').classes('text-sm text-gray-500 mb-4')
+            ui.html('<b>Single Item:</b> Quick LC for one item.<br><b>Raid Zone:</b> Batch LC for all items in selected raids.', sanitize=False).classes('text-sm text-gray-500 mb-4')
 
             # Left-aligned toggle
             ui_refs['lc_mode'] = ui.toggle(
