@@ -1,6 +1,6 @@
 # Let Me LC That For You
 
-**An open source, AI-powered loot council assistant for World of Warcraft Classic (Era & TBC Anniversary)**
+**An open source, AI-powered loot council assistant for World of Warcraft Classic (TBC Anniversary & Era)**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows-blue.svg)](#installation)
@@ -116,7 +116,7 @@ You'll need:
 ## Configuration
 
 ### Game Version
-- Era (WIP) or TBC Anniversary
+- TBC Anniversary or Era (WIP)
 
 > **Note:** Era functionality is still a work in progress. It should be functional, but some items (such as tier tokens) may be missing.
 
