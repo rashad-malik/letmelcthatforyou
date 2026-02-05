@@ -28,6 +28,9 @@ paths = get_path_manager()
 # Module-level cache for tier token names
 _tier_token_names_cache: Optional[set] = None
 
+# Module-level cache for exchange items (TBC)
+_exchange_items_tbc_cache: Optional[Dict[str, Dict]] = None
+
 
 def get_tier_token_names() -> set:
     """
@@ -52,8 +55,14 @@ def get_tier_token_names() -> set:
         with open(tokens_file, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        # Structure: {"TBC": [{"tier_version": "...", "tokens": [...]}]}
+        # Structure: {"TBC": [{"tier_version": "...", "tokens": [...]}], "exchange_items_tbc": {...}}
+        # Only process tier token keys (lists), skip exchange_items_* keys (dicts)
         for expansion_key, tier_groups in data.items():
+            # Skip exchange items - they have a different structure
+            if expansion_key.startswith("exchange_items"):
+                continue
+            if not isinstance(tier_groups, list):
+                continue
             for tier_group in tier_groups:
                 for token in tier_group.get("tokens", []):
                     token_name = token.get("token_name", "")
@@ -76,6 +85,76 @@ def is_tier_token(item_name: str) -> bool:
         True if the item is a tier token, False otherwise
     """
     return item_name.lower() in get_tier_token_names()
+
+
+def get_exchange_items_tbc() -> Dict[str, Dict]:
+    """
+    Load exchange items mapping from tokens.json.
+
+    Returns:
+        Dict of {source_name: {"ilvl": int, "items": [str, ...]}}
+    """
+    global _exchange_items_tbc_cache
+
+    if _exchange_items_tbc_cache is not None:
+        return _exchange_items_tbc_cache
+
+    _exchange_items_tbc_cache = {}
+    tokens_file = paths.get_tbc_tokens_path()
+
+    if not tokens_file or not tokens_file.exists():
+        return _exchange_items_tbc_cache
+
+    try:
+        with open(tokens_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        _exchange_items_tbc_cache = data.get("exchange_items_tbc", {})
+    except (json.JSONDecodeError, IOError):
+        pass
+
+    return _exchange_items_tbc_cache
+
+
+def is_exchange_item(item_name: str) -> bool:
+    """
+    Check if item is an exchange source item.
+
+    Args:
+        item_name: Name of the item to check
+
+    Returns:
+        True if the item is an exchange source item, False otherwise
+    """
+    return item_name.lower() in {k.lower() for k in get_exchange_items_tbc().keys()}
+
+
+def find_exchange_item(item_name: str) -> Optional[Dict]:
+    """
+    Find exchange item by source name OR exchangeable item name.
+
+    Args:
+        item_name: Name of the source item or any exchangeable item
+
+    Returns:
+        Dict with source_name, ilvl, and items list, or None if not found
+    """
+    exchange_items_tbc = get_exchange_items_tbc()
+    item_lower = item_name.lower()
+
+    for source_name, data in exchange_items_tbc.items():
+        exchangeable_items = data.get("items", [])
+        ilvl = data.get("ilvl")
+
+        # Check if it matches the source item name
+        if source_name.lower() == item_lower:
+            return {"source_name": source_name, "ilvl": ilvl, "items": exchangeable_items}
+
+        # Check if it matches any of the exchangeable items
+        for ex_item in exchangeable_items:
+            if ex_item.lower() == item_lower:
+                return {"source_name": source_name, "ilvl": ilvl, "items": exchangeable_items}
+
+    return None
 
 
 @dataclass
@@ -113,7 +192,12 @@ def find_tier_token_with_version(item_name: str) -> Optional[tuple]:
     item_lower = item_name.lower()
 
     # Handle structure: {"TBC": [{"tier_version": "...", "tokens": [...]}]}
+    # Skip exchange_items keys - they have a different structure
     for expansion_key, tier_groups in data.items():
+        if expansion_key.startswith("exchange_items"):
+            continue
+        if not isinstance(tier_groups, list):
+            continue
         for tier_group in tier_groups:
             tier_version = tier_group.get("tier_version")
             for token in tier_group.get("tokens", []):
@@ -351,6 +435,8 @@ def generate_checking_candidates(item_name: str) -> CheckingCandidatesResult:
     tier_version = None
     item_ids_to_check = []
 
+    # Check for tier tokens first (TBC only)
+    exchange_item = None
     if client_version in ["tbc", "tbc anniversary"]:
         result = find_tier_token_with_version(item_name)
         if result:
@@ -375,19 +461,36 @@ def generate_checking_candidates(item_name: str) -> CheckingCandidatesResult:
                 if compatible_id:
                     item_ids_to_check.append(compatible_id)
 
+        # Check for exchange items (non-tier items with sub-items)
+        if not tier_token:
+            exchange_item = find_exchange_item(item_name)
+            if exchange_item:
+                # Build list of item IDs to check (source + all exchangeable items)
+                source_id = nexus.get_item_id(exchange_item["source_name"])
+                if source_id:
+                    item_ids_to_check.append(source_id)
+
+                for ex_item_name in exchange_item["items"]:
+                    ex_id = nexus.get_item_id(ex_item_name)
+                    if ex_id:
+                        item_ids_to_check.append(ex_id)
+
     # Look up item in Nexus (for non-tier tokens or fallback)
     item_id = nexus.get_item_id(item_name)
     if item_id is None:
         raise ValueError(f"Item '{item_name}' not found in item database")
 
-    # If not a tier token, just check the single item
+    # If not a tier token or exchange item, just check the single item
     if not item_ids_to_check:
         item_ids_to_check = [item_id]
 
-    # Use ilvl and slot from token data for tier tokens, otherwise use Nexus
+    # Use ilvl and slot from token/exchange data, otherwise use Nexus
     if tier_token:
         item_ilvl = tier_token.get("ilvl")
         item_slot = tier_token.get("slot")
+    elif exchange_item:
+        item_ilvl = exchange_item.get("ilvl")
+        item_slot = nexus.get_item_slot(item_id)  # Get slot from Nexus for exchange items
     else:
         item_ilvl = nexus.get_item_level(item_id)
         item_slot = nexus.get_item_slot(item_id)
@@ -396,7 +499,11 @@ def generate_checking_candidates(item_name: str) -> CheckingCandidatesResult:
     # Build header
     ilvl_str = f"ilvl {item_ilvl}" if item_ilvl else "ilvl ?"
     slot_str = item_slot if item_slot else "Unknown Slot"
-    tier_note = " [TIER TOKEN]" if tier_token else ""
+    tier_note = ""
+    if tier_token:
+        tier_note = " [TIER TOKEN]"
+    elif exchange_item:
+        tier_note = " [EXCHANGE ITEM]"
     header = f"Candidates for: {canonical_name} ({ilvl_str}) ({slot_str}){tier_note}"
 
     # Get item note from TMB
@@ -1194,14 +1301,14 @@ def get_item_candidates_prompt(
 def get_zone_items(zone_name: str) -> List[str]:
     """
     Get all unique equippable item names from a raid zone, sorted by tier.
-    Tier tokens are placed at the END of the list, sorted alphabetically.
+    Tier tokens and exchange items are placed at the END of the list, sorted alphabetically.
 
     Args:
         zone_name: Name of the raid zone (e.g., "Sunwell Plateau")
 
     Returns:
         List of unique item names sorted by tier (ascending), with tier tokens
-        at the end in alphabetical order.
+        and exchange items at the end in alphabetical order.
         Duplicate item names are removed (first occurrence kept).
     """
     tmb = TMBDataManager()
@@ -1221,7 +1328,7 @@ def get_zone_items(zone_name: str) -> List[str]:
     # Use seen set to deduplicate by item name (keep first occurrence)
     seen_names = set()
     equippable_items = []  # Regular equippable items
-    tier_tokens = []       # Tier token items (separate list)
+    tier_tokens = []       # Tier token and exchange items (separate list)
 
     for _, item_row in zone_items.iterrows():
         item_id = item_row.get("id")
@@ -1229,11 +1336,11 @@ def get_zone_items(zone_name: str) -> List[str]:
         if item_id and item_name not in seen_names:
             slot = nexus.get_item_slot(item_id)
 
-            # Check if it's a tier token first
-            if is_tier_token(item_name):
+            # Check if it's a tier token or exchange item first
+            if is_tier_token(item_name) or is_exchange_item(item_name):
                 tier_tokens.append(item_name)
                 seen_names.add(item_name)
-            elif slot and slot.lower() != "non-equippable":
+            elif slot and slot.lower() not in ("non-equippable", "bag"):
                 # Regular equippable item
                 tier = item_row.get("tier")
                 equippable_items.append({"name": item_name, "tier": tier})
@@ -1242,10 +1349,10 @@ def get_zone_items(zone_name: str) -> List[str]:
     # Sort regular items by tier ascending (items with no tier go to end)
     equippable_items.sort(key=lambda x: x["tier"] if x["tier"] is not None else float('inf'))
 
-    # Sort tier tokens alphabetically (case-insensitive)
+    # Sort tier tokens/exchange items alphabetically (case-insensitive)
     tier_tokens.sort(key=str.lower)
 
-    # Combine: tier-sorted regular items first, then alphabetical tier tokens
+    # Combine: tier-sorted regular items first, then alphabetical tier tokens/exchange items
     result = [item["name"] for item in equippable_items]
     result.extend(tier_tokens)
 
