@@ -558,7 +558,7 @@ class LootCouncilProcessor:
         output_path: Optional[Path] = None
     ) -> Path:
         """
-        Save loot decisions to a CSV file.
+        Save loot suggestions to a CSV file.
 
         Args:
             decisions: List of LootDecision objects
@@ -568,7 +568,7 @@ class LootCouncilProcessor:
             Path to the saved CSV file
         """
         if output_path is None:
-            output_path = paths.get_export_path("loot_decisions_api.csv")
+            output_path = paths.get_export_path("loot_suggestions.csv")
 
         data = []
         for d in decisions:

@@ -797,7 +797,7 @@ def create_run_lc_tab(connection_refs: dict, game_version_toggle):
                 with ui.row().classes('items-center gap-2'):
                     ui.icon('info', size='sm')
                     ui.label(
-                        'Results are automatically saved to Exports/loot_decisions_api.csv'
+                        'Results are automatically saved to Exports/loot_suggestions.csv'
                     ).classes('text-sm')
 
         # Mode switching handler
