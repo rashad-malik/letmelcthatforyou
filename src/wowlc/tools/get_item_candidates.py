@@ -1126,14 +1126,11 @@ def get_item_candidates_prompt(
                 "Ranged": "Ranged DPS"
             }.get(role, role)
 
-            # Add [ALT] marker to name if applicable, and [OFFSPEC] if item is for offspec
-            name_display = raider_name
+            # Add [ALT] marker to role if applicable
             if show_alt_status and is_alt:
-                name_display += " [ALT]"
-            if is_offspec:
-                name_display += " [OFFSPEC]"
+                role_display += " [ALT]"
 
-            prompt_lines.append(f"### {idx}. {name_display}")
+            prompt_lines.append(f"### {idx}. {raider_name}")
             prompt_lines.append(f"- Class/Spec: {class_spec}")
             prompt_lines.append(f"- Role: {role_display}")
             prompt_lines.append(f"- Item Priority: {'Offspec (for alternate role)' if is_offspec else 'Mainspec'}")
