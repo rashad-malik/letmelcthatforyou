@@ -48,7 +48,7 @@ _WISHLIST_POSITION_CONTEXT = """- "Wishlist Position" indicates how much the pla
 
 _ILVL_COMPARISON_CONTEXT = """- "Upgrade size" is measured in item level difference compared to currently equipped gear (higher = better upgrade)"""
 
-_SESSION_TRACKING_CONTEXT = """- "Items Already Won This Session" tracks how many items a player has received in the current loot council session, in order to prevent funnelling loot to the same players repeatedly."""
+_SESSION_TRACKING_CONTEXT = """- "Items assigned this session" tracks how many items a player has received in the current loot council session. If the number is higher than others, consider distributing loot to other players to ensure fairness."""
 
 _CUSTOM_NOTE_CONTEXT = """- "Custom Note" contains officer-provided notes about specific raiders relevant to loot decisions."""
 

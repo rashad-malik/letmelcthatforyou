@@ -62,8 +62,11 @@ def _build_token_slot_mapping() -> dict[str, dict]:
 
     mapping = {}
 
-    # tokens.json structure: {"TBC": [{"tier_version": "...", "tokens": [...]}]}
+    # tokens.json structure: {"TBC": [{"tier_version": "...", "tokens": [...]}], "exchange_items_tbc": {...}}
+    # Only process tier token keys (lists), skip exchange_items_* keys (dicts)
     for expansion_data in data.values():
+        if not isinstance(expansion_data, list):
+            continue
         for tier_group in expansion_data:
             for token in tier_group.get("tokens", []):
                 token_name = token.get("token_name", "")

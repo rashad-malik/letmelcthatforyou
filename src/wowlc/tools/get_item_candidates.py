@@ -1147,7 +1147,7 @@ def get_item_candidates_prompt(
             # Add session allocation count if player has received items this session
             if raider_name in session_allocations:
                 alloc_count = session_allocations[raider_name]
-                prompt_lines.append(f"- Items Already Won This Session: {alloc_count}")
+                prompt_lines.append(f"- Items assigned this session: {alloc_count}")
 
             if show_alt_status and is_alt:
                 prompt_lines.append(f"- This is an ALT character")
@@ -1248,7 +1248,7 @@ def get_item_candidates_prompt(
             prompt_lines.append("Give preference to main characters over alt characters.")
 
         if config.get_policy_mode() == "simple":
-            prompt_lines.append("Apply these rules in STRICT ORDER (Rule 1 = highest priority):")
+            prompt_lines.append("For the following rules, apply them in STRICT ORDER (Rule 1 = highest priority):")
             prompt_lines.append(generate_simple_policy_rules())
         else:
             prompt_lines.append(get_guild_policy_summary())
