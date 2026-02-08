@@ -5,8 +5,18 @@ This entry point launches the NiceGUI configuration interface for
 managing WoW loot council decisions via LLM APIs.
 """
 
-import multiprocessing
 import sys
+import os
+
+# PyInstaller with console=False sets sys.stdout/stderr to None on Windows.
+# Redirect to devnull to prevent crashes in libraries (e.g., uvicorn) that
+# call stream.isatty() without null-checking.
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, 'w')
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, 'w')
+
+import multiprocessing
 
 # On Linux, set multiprocessing to use 'spawn' instead of 'fork'
 # This is required because Qt doesn't work correctly after fork() -

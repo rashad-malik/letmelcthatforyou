@@ -19,14 +19,23 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
       - name: Install Python dependencies
         run: |
-          pip install --upgrade pip
-          pip install -e .
-          pip install pyinstaller
+          uv sync --locked
+          uv pip install pyinstaller
+
+      - name: Verify key imports (diagnostic)
+        run: |
+          uv run python -c "import ssl; print('SSL:', ssl.OPENSSL_VERSION)"
+          uv run python -c "import nicegui; print('NiceGUI:', nicegui.__version__)"
+          uv run python -c "import uvicorn; print('Uvicorn:', uvicorn.__version__)"
+          uv run python -c "import sys, os, glob; d=os.path.dirname(sys.executable); print('Python dir:', d); [print(f) for f in glob.glob(os.path.join(d, '..', 'DLLs', 'lib*.dll'))]"
 
       - name: Build with PyInstaller
-        run: pyinstaller wowlc.spec --clean
+        run: uv run pyinstaller wowlc.spec --clean
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -46,6 +55,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Install system dependencies
         run: |
@@ -70,12 +82,11 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install --upgrade pip
-          pip install -e .
-          pip install pyinstaller
+          uv sync --locked
+          uv pip install pyinstaller
 
       - name: Build with PyInstaller
-        run: pyinstaller wowlc.spec --clean
+        run: uv run pyinstaller wowlc.spec --clean
 
       - name: Create AppDir structure
         run: |

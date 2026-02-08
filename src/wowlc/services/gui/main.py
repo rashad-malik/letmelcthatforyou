@@ -138,20 +138,27 @@ def main_page():
 def run_gui():
     """Run the NiceGUI configuration interface with Qt native window."""
     import sys
+    import logging
     import threading
     os.environ['NICEGUI_RELOAD'] = 'false'
 
     # Pre-fetch realms at startup if credentials are configured
     prefetch_realms()
 
-    # Start NiceGUI server in background
+    # Start NiceGUI server in background, capturing any errors
+    server_error = []
+
     def start_server():
-        ui.run(native=False, reload=False, show=False, port=8080)
+        try:
+            ui.run(native=False, reload=False, show=False, port=8080)
+        except Exception as e:
+            logging.exception("NiceGUI server thread crashed")
+            server_error.append(e)
 
     server_thread = threading.Thread(target=start_server, daemon=True)
     server_thread.start()
 
-    # Launch Qt window
+    # Launch Qt window (passes server_error so actual exceptions are surfaced)
     from wowlc.qt.window import run_qt_window
-    exit_code = run_qt_window(port=8080)
+    exit_code = run_qt_window(port=8080, server_error=server_error)
     sys.exit(exit_code)

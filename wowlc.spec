@@ -16,8 +16,23 @@ Output:
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 import sys
 import os
+import glob
 
 block_cipher = None
+
+# ============================================================================
+# Binary DLLs to Bundle (SSL)
+# ============================================================================
+# Explicitly include OpenSSL DLLs to prevent _ssl import failures.
+# PyInstaller's auto-detection can miss these when the CI runner image changes.
+binaries = []
+if sys.platform == 'win32':
+    python_dir = os.path.dirname(sys.executable)
+    for pattern in ['libcrypto*.dll', 'libssl*.dll']:
+        for dll_path in glob.glob(os.path.join(python_dir, pattern)):
+            binaries.append((dll_path, '.'))
+        for dll_path in glob.glob(os.path.join(python_dir, 'DLLs', pattern)):
+            binaries.append((dll_path, '.'))
 
 # ============================================================================
 # Data Files to Bundle
@@ -163,6 +178,8 @@ hidden_imports += collect_submodules('nicegui')
 hidden_imports += collect_submodules('litellm')
 hidden_imports += collect_submodules('gql')
 hidden_imports += collect_submodules('PySide6')
+hidden_imports += collect_submodules('uvicorn')
+hidden_imports += collect_submodules('starlette')
 
 # ============================================================================
 # Analysis
@@ -171,7 +188,7 @@ hidden_imports += collect_submodules('PySide6')
 a = Analysis(
     ['src/wowlc/__main__.py'],
     pathex=[],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hidden_imports,
     hookspath=[],
