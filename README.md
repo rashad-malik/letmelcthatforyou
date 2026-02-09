@@ -20,7 +20,7 @@ Built by and for the WoW Classic community.
 
 - **AI-Powered Recommendations** - Uses LLMs to analyse candidates and explain loot decisions
 - **10+ LLM Providers** - Anthropic Claude, OpenAI GPT, Google Gemini, Mistral, Groq, xAI, Cohere, Together AI, DeepSeek
-- **ThatsMyBIS Integration** - Wishlist priorities, loot history, attendance records, guild item notes
+- **ThatsMyBIS Integration** - Wishlist priorities, loot history, attendance records, guild item notes, raider notes
 - **WarcraftLogs Integration** - Parse performance, character gear
 - **Blizzard API Integration** - Real-time character equipment data
 - **Customisable Guild Policies** - Write your own loot rules in Markdown or use simple metric-based decision priorities
