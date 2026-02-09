@@ -4,15 +4,9 @@ Combines General Settings (server, cache) and Council Settings (metrics, raider 
 """
 from nicegui import ui
 import os
-import json
 from ..shared import (
     config,
-    RAIDER_NOTES_PATH,
     POLICY_PATH,
-    raider_note_inputs,
-    raider_note_unsaved_labels,
-    raider_note_original_values,
-    raider_note_expansions,
     notify_metric_change,
     notify_currently_equipped_change,
     register_game_version_callback,
@@ -25,12 +19,6 @@ from ..shared import (
 )
 from wowlc.core.paths import get_path_manager
 from ...blizz_manager import get_access_token, fetch_realms
-from ...tmb_manager import (
-    TMBDataManager,
-    TMBSessionNotFoundError,
-    TMBSessionExpiredError,
-    TMBFetchError
-)
 
 # Module-level cache for current realm data (name -> slug mapping)
 _current_realms: dict[str, str] = {}
@@ -94,7 +82,7 @@ CANDIDATE_RULE_DESCRIPTIONS = {
     "show_alt_status": "Include alt characters as candidates for loot.",
     "mains_over_alts": "When alts are allowed, main characters are prioritised over alts.",
     "tank_priority": "Tank-role characters get priority for tank-relevant items.",
-    "raider_notes": "Custom notes you've written about the raider.",
+    "raider_notes": "Notes from TMB about the raider.",
 }
 
 
@@ -233,130 +221,6 @@ def update_server_options(server_region, server_slug, game_version_toggle):
     else:
         server_slug.options = []
         server_slug.value = None
-
-
-# --- Raider notes helpers (from council.py) ---
-
-def ensure_raider_notes_file():
-    """Ensure raider notes file exists, create if not."""
-    if not os.path.exists(RAIDER_NOTES_PATH):
-        os.makedirs(os.path.dirname(RAIDER_NOTES_PATH), exist_ok=True)
-        with open(RAIDER_NOTES_PATH, 'w') as f:
-            json.dump({}, f, indent=2)
-
-
-def load_raider_notes():
-    """Load existing raider notes from JSON file."""
-    ensure_raider_notes_file()
-    try:
-        with open(RAIDER_NOTES_PATH, 'r') as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return {}
-
-
-def save_raider_notes(notes_dict):
-    """Save raider notes to JSON file."""
-    os.makedirs(os.path.dirname(RAIDER_NOTES_PATH), exist_ok=True)
-    with open(RAIDER_NOTES_PATH, 'w') as f:
-        json.dump(notes_dict, f, indent=2)
-
-
-def fetch_raiders(tmb_guild_id, raider_table_container):
-    """Fetch raiders from TMB and populate the table."""
-    global raider_note_inputs, raider_note_unsaved_labels, raider_note_original_values, raider_note_expansions
-    try:
-        guild_id = tmb_guild_id.value.strip()
-        if not guild_id:
-            ui.notify('TMB Guild ID is required', type='negative')
-            return
-
-        guild_slug = "placeholder"
-        manager = TMBDataManager(guild_id=guild_id, guild_slug=guild_slug)
-
-        profiles_df = manager.get_raider_profiles()
-        existing_notes = load_raider_notes()
-
-        raider_table_container.clear()
-        raider_note_inputs.clear()
-        raider_note_unsaved_labels.clear()
-        raider_note_original_values.clear()
-        raider_note_expansions.clear()
-
-        with raider_table_container:
-            for _, raider in profiles_df.iterrows():
-                raider_name = raider['name']
-                class_spec = f"{raider['class']} ({raider['spec']})" if raider['spec'] else raider['class']
-                main_alt = "Alt" if raider['is_alt'] else "Main"
-                existing_note = existing_notes.get(raider_name, "")
-
-                # Base header text (without emoji) and full header with emoji if has notes
-                base_header = f"{raider_name} - {class_spec} ({main_alt})"
-                has_note_marker = " 📝" if existing_note else ""
-                header_text = f"{base_header}{has_note_marker}"
-
-                expansion = ui.expansion(header_text, icon='person').classes('w-full')
-                raider_note_expansions[raider_name] = (expansion, base_header)
-
-                with expansion:
-                    note_input = ui.input(
-                        label='Custom Notes',
-                        value=existing_note,
-                        placeholder='Add custom notes for this raider...'
-                    ).props('maxlength=200').classes('w-full')
-                    note_input.raider_name = raider_name
-                    raider_note_inputs[raider_name] = note_input
-                    raider_note_original_values[raider_name] = existing_note
-
-                    # Character counter and unsaved indicator row
-                    with ui.row().classes('w-full justify-between items-center'):
-                        char_count_label = ui.label(f'{len(existing_note)}/200').classes('text-xs text-gray-500')
-                        unsaved_label = ui.label('Unsaved changes!').classes('text-xs text-red-500')
-                        unsaved_label.visible = False
-                        raider_note_unsaved_labels[raider_name] = unsaved_label
-
-                    def make_change_handler(counter_label, unsaved_lbl, name):
-                        def on_change(e):
-                            new_value = e.args
-                            counter_label.text = f'{len(new_value)}/200'
-                            original = raider_note_original_values.get(name, "")
-                            unsaved_lbl.visible = (new_value != original)
-                        return on_change
-
-                    note_input.on('update:model-value', make_change_handler(char_count_label, unsaved_label, raider_name))
-
-        ui.notify(f'Loaded {len(profiles_df)} raiders', type='positive')
-
-    except TMBSessionNotFoundError as e:
-        ui.notify(f'TMB session not found: {str(e)}', type='negative')
-    except TMBSessionExpiredError as e:
-        ui.notify(f'TMB session expired: {str(e)}', type='negative')
-    except TMBFetchError as e:
-        ui.notify(f'Failed to fetch raiders: {str(e)}', type='negative')
-    except Exception as e:
-        ui.notify(f'Error fetching raiders: {str(e)}', type='negative')
-
-
-def save_all_raider_notes():
-    """Save all raider notes from the input fields to JSON."""
-    notes_dict = {}
-    for raider_name, note_input in raider_note_inputs.items():
-        current_value = note_input.value.strip()
-        if current_value:
-            notes_dict[raider_name] = current_value
-        # Update original value and hide unsaved label
-        raider_note_original_values[raider_name] = current_value
-        if raider_name in raider_note_unsaved_labels:
-            raider_note_unsaved_labels[raider_name].visible = False
-        # Update expansion header to show/hide note emoji
-        if raider_name in raider_note_expansions:
-            expansion, base_header = raider_note_expansions[raider_name]
-            emoji = " 📝" if current_value else ""
-            expansion._props['label'] = f"{base_header}{emoji}"
-            expansion.update()
-
-    save_raider_notes(notes_dict)
-    ui.notify('Raider notes saved!', type='positive')
 
 
 # --- Server Settings Dialog ---
@@ -624,7 +488,7 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                     ui.label('Tank Priority').classes('font-medium')
                     ui.label(CANDIDATE_RULE_DESCRIPTIONS['tank_priority']).classes('text-xs text-gray-500')
 
-            # Raider Notes toggle (moved from metrics)
+            # Raider Notes toggle with settings
             def on_raider_notes_toggle(enabled: bool):
                 config.set_show_raider_notes(enabled)
                 notify_metric_change()
@@ -637,6 +501,22 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                 with ui.column().classes('flex-1 gap-0'):
                     ui.label('Include Raider Notes').classes('font-medium')
                     ui.label(CANDIDATE_RULE_DESCRIPTIONS['raider_notes']).classes('text-xs text-gray-500')
+                ui.button(
+                    icon='settings',
+                    on_click=lambda: raider_notes_settings_container.set_visibility(
+                        not raider_notes_settings_container.visible
+                    )
+                ).props('flat dense round').classes('text-gray-500')
+
+            with ui.element('div').classes('pl-8 pt-2 w-full') as raider_notes_settings_container:
+                raider_notes_settings_container.set_visibility(False)
+                ui.toggle(
+                    ['Public Note', 'Officer Note'],
+                    value='Public Note' if config.get_raider_note_source() == 'public_note' else 'Officer Note',
+                    on_change=lambda e: config.set_raider_note_source(
+                        'public_note' if e.value == 'Public Note' else 'officer_note'
+                    )
+                )
 
     # --- Section 1B: Policy Mode ---
     with ui.card().classes('w-full p-4 mb-4'):
@@ -1243,25 +1123,5 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
             currently_equipped_switch.on_value_change(on_currently_equipped_change)
 
         ui_refs['currently_equipped_enabled'] = currently_equipped_switch
-
-    # ==================== SECTION 2: Raider Custom Notes ====================
-    with ui.card().classes('w-full p-4 mb-4'):
-        with ui.row().classes('w-full items-center justify-between mb-4'):
-            with ui.row().classes('items-center gap-2'):
-                ui.icon('edit_note')
-                ui.label('Raider Custom Notes').classes('text-lg font-semibold')
-
-        ui.label('Press the button to pull available raiders, and update custom notes per-raider if required.').classes('text-sm mb-4')
-
-        ui_refs['raider_table_container'] = ui.column().classes('w-full')
-
-        with ui.row().classes('w-full gap-2 mb-4'):
-            ui.button(
-                'Fetch Raiders',
-                on_click=lambda: fetch_raiders(tmb_guild_id_ref, ui_refs['raider_table_container'])
-            )
-
-        with ui.row().classes('w-full gap-2'):
-            ui.button('Save', on_click=save_all_raider_notes, icon='save')
 
     return ui_refs

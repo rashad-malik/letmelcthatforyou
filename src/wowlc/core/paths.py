@@ -214,10 +214,6 @@ class PathManager:
         """Get path to user configuration file."""
         return self._user_dir / "config.json"
 
-    def get_raider_notes_path(self) -> Path:
-        """Get path to raider notes JSON (user-editable in Documents)."""
-        return self._user_dir / "raider_notes.json"
-
     # =========================================================================
     # Public API: Application Data (AppData)
     # =========================================================================

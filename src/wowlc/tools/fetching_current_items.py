@@ -267,10 +267,12 @@ GEAR_SLOTS = {
 # Slot groups for matching received items
 SLOT_GROUPS = {
     "main hand": ["main hand", "one-hand", "two-hand", "held in off-hand", "off hand"],
+    "main_hand": ["main hand", "one-hand", "two-hand", "held in off-hand", "off hand"],
     "one-hand": ["main hand", "one-hand", "two-hand", "held in off-hand", "off hand"],
     "two-hand": ["main hand", "one-hand", "two-hand", "held in off-hand", "off hand"],
     "held in off-hand": ["main hand", "one-hand", "two-hand", "held in off-hand", "off hand", "shield"],
     "off hand": ["main hand", "one-hand", "two-hand", "held in off-hand", "off hand", "shield"],
+    "off_hand": ["main hand", "one-hand", "two-hand", "held in off-hand", "off hand", "shield"],
     "shield": ["held in off-hand", "off hand", "shield"],
     "finger": ["finger"],
     "trinket": ["trinket"],

@@ -50,7 +50,7 @@ _ILVL_COMPARISON_CONTEXT = """- "Upgrade size" is measured in item level differe
 
 _SESSION_TRACKING_CONTEXT = """- "Items assigned this session" tracks how many items a player has received in the current loot council session. If the number is higher than others, consider distributing loot to other players to ensure fairness."""
 
-_CUSTOM_NOTE_CONTEXT = """- "Custom Note" contains officer-provided notes about specific raiders relevant to loot decisions."""
+_CUSTOM_NOTE_CONTEXT = """- "Raider Note" contains notes about specific raiders relevant to loot decisions."""
 
 _GUILD_PRIORITY_NOTE_CONTEXT = """- "Guild Priority Note" contains overarching guidelines on how this item should be distributed."""
 

@@ -18,18 +18,8 @@ config = get_config_manager()
 # Get the PathManager instance
 paths = get_path_manager()
 
-# Path to raider notes JSON file (now in AppData)
-RAIDER_NOTES_PATH = str(paths.get_raider_notes_path())
-
 # Path to guild loot policy markdown file (now in Documents - FIXES PATH MISMATCH BUG)
 POLICY_PATH = str(paths.get_guild_policy_path())
-
-# Global variables for raider notes UI
-raider_note_inputs = {}
-raider_note_unsaved_labels = {}
-raider_note_original_values = {}
-raider_note_expansions = {}  # Maps raider_name -> (expansion_element, base_header_text)
-raider_table_container = None
 
 # Callback registry for cross-tab notifications
 _metric_change_callbacks = []

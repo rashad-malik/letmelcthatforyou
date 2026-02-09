@@ -397,6 +397,8 @@ class TMBDataManager:
                     "archetype": char.get("archetype"),
                     "profession_1": char.get("profession_1"),
                     "profession_2": char.get("profession_2"),
+                    "public_note": char.get("public_note") or "",
+                    "officer_note": char.get("officer_note") or "",
                     "is_alt": bool(char.get("is_alt", 0)),
                 }
             )

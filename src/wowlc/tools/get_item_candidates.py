@@ -635,18 +635,6 @@ def generate_checking_candidates(item_name: str) -> CheckingCandidatesResult:
     )
 
 
-def load_raider_notes() -> dict:
-    """Load raider notes from JSON file."""
-    notes_path = paths.get_raider_notes_path()
-    if not notes_path.exists():
-        return {}
-    try:
-        with open(notes_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return {}
-
-
 def normalize_slot_for_cache(nexus_slot: str) -> Optional[str]:
     """
     Convert Nexus slot name to cache slot name.
@@ -1077,9 +1065,13 @@ def get_item_candidates_prompt(
         if show_ilvl_upgrade or show_tier_token_counts:
             cache_data = get_cached_raider_gear()
 
-        # Load raider notes if enabled
+        # Load raider notes from TMB profiles if enabled
         show_raider_notes = config.get_show_raider_notes()
-        raider_notes = load_raider_notes() if show_raider_notes else {}
+        raider_note_source = config.get_raider_note_source() if show_raider_notes else None
+        raider_profiles_df = None
+        if show_raider_notes:
+            tmb_notes = TMBDataManager()
+            raider_profiles_df = tmb_notes.get_raider_profiles()
 
         # Load TMB received data for last item received metric
         show_last_item_received = config.get_show_last_item_received()
@@ -1223,11 +1215,12 @@ def get_item_candidates_prompt(
                     count = tier_counts.get(result.tier_version, 0)
                     prompt_lines.append(f"- Tier tokens equipped: {count}")
 
-            # Add raider notes if enabled
-            if show_raider_notes:
-                note = raider_notes.get(raider_name, "")
+            # Add raider notes from TMB if enabled
+            if show_raider_notes and raider_profiles_df is not None:
+                match = raider_profiles_df.loc[raider_profiles_df['name'] == raider_name, raider_note_source]
+                note = match.iloc[0] if not match.empty else ""
                 if note:
-                    prompt_lines.append(f"- Custom Note: {note}")
+                    prompt_lines.append(f"- Raider Note: {note}")
                     has_custom_notes = True
 
             prompt_lines.append("")

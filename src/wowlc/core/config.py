@@ -68,6 +68,7 @@ class ConfigManager:
             "show_tier_token_counts": False,
             "tank_priority": False,
             "show_raider_notes": False,
+            "raider_note_source": "public_note",
             "show_last_item_received": False
         },
         "export_path": "",
@@ -553,6 +554,17 @@ class ConfigManager:
         if "player_metrics" not in self._config:
             self._config["player_metrics"] = {}
         self._config["player_metrics"]["show_raider_notes"] = value
+        self._save_config()
+
+    def get_raider_note_source(self) -> str:
+        """Get which TMB note field to use: 'public_note' or 'officer_note'."""
+        return self._config.get("player_metrics", {}).get("raider_note_source", "public_note")
+
+    def set_raider_note_source(self, value: str) -> None:
+        """Set which TMB note field to use: 'public_note' or 'officer_note'."""
+        if "player_metrics" not in self._config:
+            self._config["player_metrics"] = {}
+        self._config["player_metrics"]["raider_note_source"] = value
         self._save_config()
 
     def get_show_last_item_received(self) -> bool:
