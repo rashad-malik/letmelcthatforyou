@@ -90,7 +90,9 @@ This opens a NiceGUI interface for configuration and running loot council.
 
 You'll need:
 1. **ThatsMyBIS Guild ID** - Found in your TMB guild URL (e.g., `1234` from `thatsmybis.com/1234/my-guild/...`)
-2. **WarcraftLogs API credentials** - [Create an API client here](https://www.warcraftlogs.com/api/clients)
+2. **WarcraftLogs API credentials** - [Create an API client here](https://www.warcraftlogs.com/api/clients) with the following redirect URLs:
+   - `https://www.warcraftlogs.com/api/v2-explorer`
+   - `http://localhost:8765/callback`
 3. **Blizzard API credentials** - [Create an API client here](https://develop.battle.net/access/clients)
 4. **LLM API key** - From any supported provider (Anthropic, OpenAI, etc.)
 

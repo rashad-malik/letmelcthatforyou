@@ -81,7 +81,7 @@ METRIC_DESCRIPTIONS = {
 CANDIDATE_RULE_DESCRIPTIONS = {
     "show_alt_status": "Include alt characters as candidates for loot.",
     "mains_over_alts": "When alts are allowed, main characters are prioritised over alts.",
-    "tank_priority": "Tank-role characters get priority for tank-relevant items.",
+    "tank_priority": "Tanks get priority for any mainspec items.",
     "raider_notes": "Notes from TMB about the raider.",
 }
 
