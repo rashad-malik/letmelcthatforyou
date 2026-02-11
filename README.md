@@ -7,21 +7,22 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows-blue.svg)](#installation)
 [![Platform: Linux](https://img.shields.io/badge/Platform-Linux-orange.svg)](#installation)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/RGmymTJCnR)
 
 ---
 
+> **🚧 Beta Notice:** This app is currently in beta. If you encounter any bugs or issues, please report them through [GitHub Issues](https://github.com/rashad-malik/letmelcthatforyou/issues) or on the [Discord](https://discord.gg/RGmymTJCnR). Your feedback helps improve the app!
+
 ## What is this?
 
-**Let Me LC That For You** helps guild loot councils make fair, consistent loot distribution decisions using AI. It pulls data from WarcraftLogs and ThatsMyBIS, analyses each candidate based on your guild's loot policy, and provides intelligent recommendations with clear reasoning.
-
-Built by and for the WoW Classic community.
+**Let Me LC That For You** helps guild loot councils make fair, consistent loot distribution decisions using AI. It pulls data from ThatsMyBIS and WarcraftLogs, analyses each candidate based on your guild's loot policy, and provides intelligent recommendations with clear reasoning.
 
 ---
 
 ## Features
 
 - **AI-Powered Recommendations** - Uses LLMs to analyse candidates and explain loot decisions
-- **10+ LLM Providers** - Anthropic Claude, OpenAI GPT, Google Gemini, Mistral, Groq, xAI, Cohere, Together AI, DeepSeek
+- **9 LLM Providers** - Anthropic Claude, OpenAI GPT, Google Gemini, Mistral AI, Groq Fast Inference, xAI Grok, Cohere, Together AI, DeepSeek
 - **ThatsMyBIS Integration** - Wishlist priorities, loot history, attendance records, guild item notes, raider notes
 - **WarcraftLogs Integration** - Parse performance, character gear
 - **Blizzard API Integration** - Real-time character equipment data
@@ -243,6 +244,46 @@ Run `uv run playwright install` to download required browser binaries.
 - Check your API quota and billing status
 - Increase delay between requests if hitting rate limits
 
+## FAQ
+
+### What raid sizes does this app support?
+
+The app focuses on **25-man raids** for TBC Anniversary and **40-man raids** for Classic Era. Smaller raid sizes (e.g. Karazhan) are not the primary focus.
+
+### Does the app support languages other than English?
+
+No. The application is **English only** — the interface, AI prompts, and all API integrations are in English. There is no localisation support at this time.
+
+### What should I set up on That's My BIS for this app to work well?
+
+The more complete your TMB data, the better the recommendations. Here's what matters most:
+
+| Field | Importance | Why |
+|-------|------------|-----|
+| **Wishlists** | Essential | Characters without wishlists will not appear as candidates for any items |
+| **Attendance records** | High | Used to calculate raid attendance percentage |
+| **Received loot history** | High | Tracks recent loot and tier token progress |
+| **Character archetype** (Tank/Healer/DPS) | High | Determines the parse metric type and role context for recommendations |
+| **Alt status** | High | Distinguishes mains from alts for filtering and priority |
+| **Mainspec vs offspec** flags on wishlist items | High | Ensures mainspec needs are prioritised correctly |
+| **Item tier class** (e.g. S, A, B) | Recommended | Raid zone LC processes higher-tier items first, leading to fairer overall distribution — TMB's default tiers work fine |
+| **Item notes / prio notes** | Recommended | Guild-level item priority notes are included in the AI prompt |
+| **Raider notes** (public/officer) | Optional | Shown to the AI if enabled in settings — useful for special considerations |
+
+### Will I hit WarcraftLogs API rate limits?
+
+Standard (free) WarcraftLogs accounts have reasonable hourly API limits, which should be sufficient for most guilds. However, if you have an exceptionally large raid team or run the app frequently, you may hit those limits. If this happens, consider subscribing to one of WarcraftLogs' paid tiers, which offer increased API allowances.
+
+### When is the best time to use this app?
+
+**Before your raid**, not during it. The app is not designed for mid-raid use, particularly when processing an entire raid zone's worth of loot council decisions. The recommended workflow is:
+
+1. Run the app before raid night to generate recommendations
+2. Review the AI's suggestions and update item/player priority choices on That's My BIS accordingly
+3. Use those updated priorities as a reference during the raid itself
+
+> **Remember:** AI recommendations are a starting point, not a final verdict. Always apply human judgement when making loot decisions.
+
 ---
 
 ## Acknowledgements & Special Thanks
@@ -258,7 +299,7 @@ This project also wouldn't be possible without these tools and platforms:
 - **[WarcraftLogs](https://www.warcraftlogs.com/)** - The gold standard for WoW raid logging and performance analysis
 - **[Blizzard Entertainment](https://develop.battle.net/)** - For WoW Classic APIs
 - **[Nexus-Devs wow-classic-items](https://github.com/nexus-devs/wow-classic-items)** - Comprehensive WoW Classic item database
-- **[LiteLLM](https://github.com/BerriAI/litellm)** - Connects to 10+ AI providers and provides useful tools such as token counts and cost estimates
+- **[LiteLLM](https://github.com/BerriAI/litellm)** - Connects to AI providers and provides useful tools such as token counts and cost estimates
 - **[OpenRouter](https://openrouter.ai/)** - Model metadata API for human-readable model names
 - **[NiceGUI](https://nicegui.io/)** - Python-based browser GUI framework
 - **[Astral UV](https://github.com/astral-sh/uv)** - Python package management

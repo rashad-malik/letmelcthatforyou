@@ -4,11 +4,11 @@ Main page layout and entry point for the GUI configuration interface.
 from nicegui import ui
 import os
 from .tabs.connections import create_connections_tab
-from .tabs.settings import create_settings_tab, create_server_settings_dialog, prefetch_realms
+from .tabs.settings import create_settings_tab, create_server_settings_dialog
 from .tabs.run_lc import create_run_lc_tab
 from .tabs.dev import create_dev_dialog
 from .components.help_dialog import create_help_dialog
-from .shared import config, notify_game_version_change, clear_game_version_callbacks
+from .shared import config, notify_game_version_change, clear_game_version_callbacks, clear_pyrewood_mode_callbacks
 
 
 @ui.page('/')
@@ -42,8 +42,9 @@ def main_page():
 
                     game_version_toggle.on_value_change(on_version_change)
 
-                    # Clear game version callbacks on page load to avoid duplicates
+                    # Clear callbacks on page load to avoid duplicates
                     clear_game_version_callbacks()
+                    clear_pyrewood_mode_callbacks()
 
                     # Server settings dialog button
                     server_dialog, server_refs, open_server_dialog = create_server_settings_dialog(game_version_toggle)
@@ -135,15 +136,12 @@ def main_page():
                 all_ui_refs.update(run_lc_refs)
 
 
-def run_gui():
+def run_gui(splash=None):
     """Run the NiceGUI configuration interface with Qt native window."""
     import sys
     import logging
     import threading
     os.environ['NICEGUI_RELOAD'] = 'false'
-
-    # Pre-fetch realms at startup if credentials are configured
-    prefetch_realms()
 
     # Start NiceGUI server in background, capturing any errors
     server_error = []
@@ -160,5 +158,5 @@ def run_gui():
 
     # Launch Qt window (passes server_error so actual exceptions are surfaced)
     from wowlc.qt.window import run_qt_window
-    exit_code = run_qt_window(port=8080, server_error=server_error)
+    exit_code = run_qt_window(port=8080, server_error=server_error, splash=splash)
     sys.exit(exit_code)

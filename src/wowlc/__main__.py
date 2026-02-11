@@ -38,6 +38,43 @@ import logging
 from pathlib import Path
 
 
+def _show_splash():
+    """Show a splash screen during app loading (bundled exe only)."""
+    if not getattr(sys, 'frozen', False):
+        return None
+    try:
+        import tkinter as tk
+        base = sys._MEIPASS
+        image_path = os.path.join(base, 'assets', 'med_logo.png')
+        if not os.path.exists(image_path):
+            return None
+
+        splash = tk.Tk()
+        splash.overrideredirect(True)
+        splash.attributes('-topmost', True)
+        # Drop topmost after a brief moment so it doesn't cover other apps
+        splash.after(1000, lambda: splash.attributes('-topmost', False))
+
+        img = tk.PhotoImage(file=image_path)
+        splash._splash_img = img  # prevent garbage collection
+
+        label = tk.Label(splash, image=img, borderwidth=0)
+        label.pack()
+
+        # Center on screen
+        splash.update_idletasks()
+        w = splash.winfo_width()
+        h = splash.winfo_height()
+        x = (splash.winfo_screenwidth() - w) // 2
+        y = (splash.winfo_screenheight() - h) // 2
+        splash.geometry(f'+{x}+{y}')
+
+        splash.update()
+        return splash
+    except Exception:
+        return None
+
+
 def setup_logging():
     """Configure logging to file for debugging."""
     try:
@@ -69,6 +106,7 @@ def setup_logging():
 
 def main():
     """Main entry point - launches the GUI."""
+    splash = _show_splash()
     log_file = None
     try:
         log_file = setup_logging()
@@ -81,9 +119,16 @@ def main():
         # Launch GUI
         logging.info("→ Starting GUI mode")
         from wowlc.services.gui import run_gui
-        run_gui()
+        run_gui(splash=splash)
 
     except Exception as e:
+        # Dismiss splash so error dialog is visible
+        if splash:
+            try:
+                splash.destroy()
+            except Exception:
+                pass
+            splash = None
         logging.exception("FATAL ERROR during startup")
         # Try to show error dialog if possible
         try:

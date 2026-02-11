@@ -312,7 +312,8 @@ BLIZZARD_SLOT_MAP = {
 }
 
 # WCL Zone IDs by game version
-TBC_ZONE_IDS = {1007, 1008, 1010, 1011, 1012, 1013}  # Kara, Gruul/Mag, SSC/TK, BT/Hyjal, ZA, Sunwell
+TBC_ZONE_IDS = {1047, 1048}  # TBC Anniversary: Kara, Gruul/Mag
+TBC_ZONE_IDS_LEGACY = {1007, 1008, 1010, 1011, 1012, 1013}  # Original TBC Classic: Kara, Gruul/Mag, SSC/TK, BT/Hyjal, ZA, Sunwell
 ERA_ZONE_IDS = {1028, 1034, 1035, 1036}  # MC, BWL, AQ40, Naxx
 
 
@@ -323,7 +324,9 @@ def get_valid_zone_ids() -> set[int]:
 
     if client_version in ("era", "fresh"):
         return ERA_ZONE_IDS
-    else:  # tbc, tbc anniversary
+    elif config.get_pyrewood_dev_mode():
+        return TBC_ZONE_IDS_LEGACY
+    else:  # tbc anniversary
         return TBC_ZONE_IDS
 
 

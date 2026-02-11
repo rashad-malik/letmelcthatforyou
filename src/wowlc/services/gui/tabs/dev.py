@@ -11,6 +11,7 @@ from ..shared import (
     register_field_for_tracking,
     check_field_changed,
     mark_field_saved,
+    notify_pyrewood_mode_change,
 )
 from wowlc.core.paths import get_path_manager
 from wowlc.auth.wcl_authenticate import authenticate as wcl_authenticate
@@ -127,6 +128,7 @@ def create_dev_dialog():
                             # Update thunderstrike toggle UI to reflect mutual exclusion
                             if e.value:
                                 thunderstrike_toggle.value = False
+                            notify_pyrewood_mode_change()
 
                         def on_thunderstrike_change(e):
                             config.set_thunderstrike_dev_mode(e.value)

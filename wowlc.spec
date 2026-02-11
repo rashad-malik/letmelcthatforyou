@@ -41,6 +41,7 @@ if sys.platform == 'win32':
 # Application data files
 datas = [
     ('data', 'data'),            # TBC tokens JSON, etc.
+    ('assets/med_logo.png', 'assets'),  # Splash screen image (loaded by Tkinter at runtime)
 ]
 
 # Collect NiceGUI static assets (JavaScript, CSS, etc.)
@@ -177,7 +178,6 @@ hidden_imports = [
 hidden_imports += collect_submodules('nicegui')
 hidden_imports += collect_submodules('litellm')
 hidden_imports += collect_submodules('gql')
-hidden_imports += collect_submodules('PySide6')
 hidden_imports += collect_submodules('uvicorn')
 hidden_imports += collect_submodules('starlette')
 
@@ -193,7 +193,7 @@ a = Analysis(
     hiddenimports=hidden_imports,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=['hooks/hook-ssl.py'],
+    runtime_hooks=['hooks/hook-ssl.py', 'hooks/hook-dll.py'],
     excludes=[
         'playwright',           # Not needed - using system browser
         'pytest',               # Testing only
@@ -201,12 +201,48 @@ a = Analysis(
         'IPython',              # Dev only
         'matplotlib',           # Not used
         'scipy',                # Not used
+        # PySide6 modules not used by this app (prevent DLL conflicts)
+        'PySide6.Qt3DAnimation',
+        'PySide6.Qt3DCore',
+        'PySide6.Qt3DExtras',
+        'PySide6.Qt3DInput',
+        'PySide6.Qt3DLogic',
+        'PySide6.Qt3DRender',
+        'PySide6.QtBluetooth',
+        'PySide6.QtCharts',
+        'PySide6.QtDataVisualization',
+        'PySide6.QtMultimedia',
+        'PySide6.QtMultimediaWidgets',
+        'PySide6.QtNfc',
+        'PySide6.QtRemoteObjects',
+        'PySide6.QtSensors',
+        'PySide6.QtSerialBus',
+        'PySide6.QtSerialPort',
+        'PySide6.QtTest',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
     noarchive=False,
 )
+
+# ============================================================================
+# Filter Anaconda/Conda Qt DLLs (prevent conflicts with PySide6)
+# ============================================================================
+# When Anaconda is active, PyInstaller may pick up Anaconda's Qt6 DLLs
+# instead of PySide6's. These are different builds/versions and cause
+# "DLL load failed" errors at runtime. Remove any Qt DLLs from conda paths.
+conda_indicators = ('anaconda', 'conda', 'miniconda')
+def _is_conda_qt_dll(binary_tuple):
+    name, path, *_ = binary_tuple
+    path_lower = path.lower().replace('\\', '/')
+    if any(ind in path_lower for ind in conda_indicators):
+        if name.lower().startswith('qt') and name.lower().endswith('.dll'):
+            print(f"  [FILTERED] Removing conda Qt DLL: {name} from {path}")
+            return True
+    return False
+
+a.binaries = [b for b in a.binaries if not _is_conda_qt_dll(b)]
 
 # ============================================================================
 # Create PYZ archive

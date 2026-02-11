@@ -3,14 +3,16 @@ Settings tab for the GUI configuration interface.
 Combines General Settings (server, cache) and Council Settings (metrics, raider notes).
 """
 from nicegui import ui
+import json
 import os
+from pathlib import Path
 from ..shared import (
     config,
     POLICY_PATH,
     notify_metric_change,
     notify_currently_equipped_change,
     register_game_version_callback,
-    register_blizzard_cred_callback,
+    register_pyrewood_mode_callback,
     register_currently_equipped_callback,
     clear_currently_equipped_callbacks,
     register_field_for_tracking,
@@ -18,25 +20,12 @@ from ..shared import (
     mark_field_saved,
 )
 from wowlc.core.paths import get_path_manager
-from ...blizz_manager import get_access_token, fetch_realms
 
 # Module-level cache for current realm data (name -> slug mapping)
 _current_realms: dict[str, str] = {}
 
-# Global cache for all realms by region (populated at app startup)
-_realm_cache: dict[str, list[dict]] = {}
-
-# Hardcoded TBC Anniversary realms (not yet in Blizzard API)
-TBC_ANNIVERSARY_REALMS: dict[str, dict[str, str]] = {
-    "US": {
-        "Dreamscythe": "dreamscythe",
-        "Nightslayer": "nightslayer",
-    },
-    "EU": {
-        "Spineshatter": "spineshatter",
-        "Thunderstrike": "thunderstrike",
-    },
-}
+# Cached realm data loaded from realms.json
+_realm_data: dict | None = None
 
 # Decision Priority metric display labels
 METRIC_LABELS = {
@@ -49,16 +38,8 @@ METRIC_LABELS = {
     "tier_token_counts": "Tier Token Counts",
 }
 
-# Rule templates for generated rules preview
-METRIC_RULE_TEMPLATES = {
-    "wishlist_position": "Give preference to raiders who want this item more.",
-    "attendance": "Give preference to raiders with higher attendance.",
-    "recent_loot": "Give preference to raiders who received fewer items recently.",
-    "ilvl_comparison": "Give preference to raiders with a larger ilvl upgrade.",
-    "parses": "Give preference to raiders with better parses.",
-    "last_item_received": "Give preference to raiders who received an item for this slot longest ago.",
-    "tier_token_counts": "Prioritise raiders who are closer to completing 2 or 4 set tier bonus.",
-}
+# Rule templates for generated rules preview (single source of truth in get_item_candidates)
+from wowlc.tools.get_item_candidates import METRIC_RULE_TEMPLATES
 
 # Metrics that have sub-settings (show gear icon)
 METRICS_WITH_SETTINGS = {"attendance", "recent_loot", "parses"}
@@ -117,82 +98,23 @@ def save_policy_content(policy_text):
         ui.notify(f'Error saving policy: {str(e)}', type='negative')
 
 
-# --- Blizzard realm helpers (from general.py) ---
+# --- Realm helpers ---
 
-def check_blizzard_credentials() -> bool:
-    """Check if Blizzard credentials are configured."""
-    return bool(config.get_blizzard_client_id() and config.get_blizzard_client_secret())
-
-
-def get_namespace(region: str) -> str:
-    """Build namespace string for Blizzard API."""
-    return f"dynamic-classic1x-{region.lower()}"
-
-
-def is_valid_realm_id(realm_id: int, _game_version: str, region: str) -> bool:
-    """Check if a realm ID is valid for Era (TBC Anniversary uses hardcoded realms)."""
-    id_str = str(realm_id)
-
-    if region.upper() == "EU":
-        # Era realms in EU: ID starts with 55, or ID starts with 52 and >= 5220 (excluding 5244 EU5 CWOW Web)
-        if id_str.startswith("55"):
-            return True
-        if id_str.startswith("52") and realm_id >= 5220 and realm_id != 5244:
-            return True
-        return False
-    else:  # US
-        # Era realms in US: ID starts with 50, or ID starts with 51 and <= 5150
-        if id_str.startswith("50"):
-            return True
-        if id_str.startswith("51") and realm_id <= 5150:
-            return True
-        return False
-
-
-def prefetch_realms():
-    """Fetch and cache realms for all regions at app startup."""
-    if not check_blizzard_credentials():
-        return
-
-    token = get_access_token()
-    if not token:
-        return
-
-    for region in ["eu", "us"]:
-        namespace = get_namespace(region)
-        realms = fetch_realms(token, region, namespace)
-        _realm_cache[region.upper()] = realms
-
-
-def get_cached_realms(region: str) -> list[dict]:
-    """Get cached realms for a region, fetching if not cached."""
-    region_upper = region.upper()
-    if region_upper not in _realm_cache:
-        if not check_blizzard_credentials():
-            return []
-        token = get_access_token()
-        if not token:
-            return []
-        namespace = get_namespace(region)
-        _realm_cache[region_upper] = fetch_realms(token, region.lower(), namespace)
-
-    return _realm_cache.get(region_upper, [])
+def _load_realm_data() -> dict:
+    """Load realm data from bundled realms.json (cached after first load)."""
+    global _realm_data
+    if _realm_data is None:
+        realms_file = Path(__file__).resolve().parent.parent.parent.parent.parent.parent / "data" / "realms.json"
+        with open(realms_file, "r", encoding="utf-8") as f:
+            _realm_data = json.load(f)
+    return _realm_data
 
 
 def fetch_realm_data(game_version: str, region: str) -> dict[str, str]:
-    """Get filtered realms based on game version and region."""
-    # TBC Anniversary realms are hardcoded (not in Blizzard API yet)
-    if game_version == "TBC Anniversary":
-        return TBC_ANNIVERSARY_REALMS.get(region.upper(), {})
-
-    # Era realms come from the API
-    realms = get_cached_realms(region)
-
-    return {
-        r["name"]: r["slug"]
-        for r in realms
-        if r.get("name") and r.get("slug") and is_valid_realm_id(r.get("id", 0), game_version, region)
-    }
+    """Get realms for a game version and region from the static database."""
+    data = _load_realm_data()
+    version_key = "Era" if game_version == "Era (WIP)" else game_version
+    return data.get(version_key, {}).get(region.upper(), {})
 
 
 def update_server_options(server_region, server_slug, game_version_toggle):
@@ -201,11 +123,6 @@ def update_server_options(server_region, server_slug, game_version_toggle):
 
     region = server_region.value
     game_version = game_version_toggle.value
-
-    if not check_blizzard_credentials():
-        server_slug.options = []
-        server_slug.value = None
-        return
 
     if region and game_version:
         _current_realms = fetch_realm_data(game_version, region)
@@ -249,11 +166,6 @@ def create_server_settings_dialog(game_version_toggle):
                     ui.label('WoW Server Settings').classes('text-xl font-semibold')
                 ui.button(icon='close', on_click=dialog.close).props('flat round')
 
-            # Warning label for missing credentials
-            credentials_warning = ui.label(
-                'Blizzard API credentials required. Configure them in Core Connections tab.'
-            ).classes('text-amber-500 w-full mb-2')
-
             # Server Region field with unsaved indicator
             with ui.row().classes('w-full items-center gap-2'):
                 ui_refs['server_region'] = ui.select(
@@ -280,36 +192,6 @@ def create_server_settings_dialog(game_version_toggle):
                 server_slug_unsaved = ui.label('Unsaved changes!').classes('text-red-500 text-xs')
                 server_slug_unsaved.visible = False
 
-            # Check credentials and update UI state
-            has_credentials = check_blizzard_credentials()
-            credentials_warning.set_visibility(not has_credentials)
-            if not has_credentials:
-                ui_refs['server_region'].disable()
-                ui_refs['server_slug'].disable()
-
-            def refresh_server_section():
-                """Refresh the server section after credentials are saved."""
-                global _current_realms
-
-                if check_blizzard_credentials():
-                    credentials_warning.set_visibility(False)
-                    ui_refs['server_region'].enable()
-                    ui_refs['server_slug'].enable()
-
-                    prefetch_realms()
-
-                    region = ui_refs['server_region'].value
-                    game_version = game_version_toggle.value
-                    if region and game_version:
-                        _current_realms = fetch_realm_data(game_version, region)
-                        if _current_realms:
-                            realm_names = sorted(_current_realms.keys())
-                            ui_refs['server_slug'].options = realm_names
-                            ui_refs['server_slug'].value = realm_names[0]
-
-            ui_refs['_refresh_server_section'] = refresh_server_section
-            register_blizzard_cred_callback(refresh_server_section)
-
             # Update servers when region changes
             def on_region_change():
                 update_server_options(
@@ -333,9 +215,6 @@ def create_server_settings_dialog(game_version_toggle):
             def initialize_servers():
                 """Initialize the server dropdown on page load."""
                 global _current_realms
-
-                if not check_blizzard_credentials():
-                    return
 
                 region = ui_refs['server_region'].value
                 game_version = game_version_toggle.value
@@ -406,6 +285,12 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
 
     # Parse zone options by game version (used by parses settings)
     TBC_ZONE_OPTIONS = {
+        1047: "Karazhan",
+        1048: "Gruul/Mag",
+    }
+
+    # Legacy TBC zone IDs (original TBC Classic) - used when Pyrewood dev mode is enabled
+    TBC_ZONE_OPTIONS_LEGACY = {
         1007: "Karazhan",
         1008: "Gruul/Mag",
         1010: "SSC/TK",
@@ -430,6 +315,8 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
         version = game_version_toggle.value if hasattr(game_version_toggle, 'value') else 'Era'
         if version == 'Era':
             return ERA_ZONE_OPTIONS
+        if config.get_pyrewood_dev_mode():
+            return TBC_ZONE_OPTIONS_LEGACY
         return TBC_ZONE_OPTIONS
 
     # --- Section 1A: Candidate Rules ---
@@ -518,6 +405,9 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                     )
                 )
 
+    # Guard flag to prevent checkbox handlers firing during mode switch sync
+    _syncing_checkboxes = False
+
     # --- Section 1B: Policy Mode ---
     with ui.card().classes('w-full p-4 mb-4'):
         with ui.row().classes('w-full items-center gap-2 mb-2'):
@@ -527,9 +417,42 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
         ui.label('Simple mode uses priority rules below. Custom mode uses your written policy.').classes('text-sm text-gray-500 mb-4')
 
         def on_policy_mode_change(e):
-            mode = e.sender.value
-            is_simple = mode == 'Simple'
-            config.set_policy_mode('simple' if is_simple else 'custom')
+            nonlocal _syncing_checkboxes
+            new_mode_display = e.sender.value  # "Simple" or "Custom"
+            new_mode = 'simple' if new_mode_display == 'Simple' else 'custom'
+            old_mode = config.get_policy_mode()
+
+            # Save the outgoing mode's metric states from active flags
+            config.save_mode_metrics(old_mode)
+
+            # Switch the policy mode
+            config.set_policy_mode(new_mode)
+
+            # Load the incoming mode's metric states into active flags
+            config.load_mode_metrics(new_mode)
+
+            # Sync UI checkboxes to reflect the newly loaded active flags
+            is_simple = (new_mode == 'simple')
+            _syncing_checkboxes = True
+            try:
+                if is_simple:
+                    for metric_id, checkbox in metric_checkboxes.items():
+                        new_val = get_metric_enabled(metric_id) and is_metric_available(metric_id)
+                        checkbox.value = new_val
+                        row = metric_rows.get(metric_id)
+                        if row:
+                            if new_val:
+                                row.classes(remove='opacity-50')
+                            else:
+                                row.classes(add='opacity-50')
+                    rule_preview.refresh()
+                else:
+                    for metric_id, checkbox in custom_metric_checkboxes.items():
+                        new_val = get_metric_enabled(metric_id) and is_metric_available(metric_id)
+                        checkbox.value = new_val
+            finally:
+                _syncing_checkboxes = False
+
             simple_mode_container.set_visibility(is_simple)
             custom_mode_container.set_visibility(not is_simple)
             notify_metric_change()
@@ -628,8 +551,11 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                     panel.set_visibility(not panel.visible)
 
             def on_metric_checkbox_change(metric_id: str, enabled: bool):
-                """Handle metric checkbox toggle."""
+                """Handle metric checkbox toggle in Simple mode."""
+                if _syncing_checkboxes:
+                    return
                 set_metric_enabled(metric_id, enabled)
+                config.save_mode_metrics('simple')
                 # Update row styling
                 row = metric_rows.get(metric_id)
                 if row:
@@ -668,6 +594,7 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                             row.classes(add='opacity-50')
                         elif get_metric_enabled(metric_id):
                             row.classes(remove='opacity-50')
+                config.save_mode_metrics('simple')
                 rule_preview.refresh()
 
             def update_custom_equipped_dependent_metrics():
@@ -683,6 +610,7 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                             if checkbox.value:
                                 checkbox.value = False
                                 set_metric_enabled(metric_id, False)
+                config.save_mode_metrics('custom')
 
             # Sortable container
             with ui.column().classes('w-full sortable-metrics gap-1'):
@@ -732,6 +660,15 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                     on_click=lambda mid=metric_id: toggle_settings_panel(mid)
                                 ).props('flat dense round').classes('text-gray-500')
 
+                            # Parse zone warning icon (visible even when settings panel is closed)
+                            if metric_id == "parses":
+                                parse_zone_row_warning = ui.icon('warning_amber') \
+                                    .classes('text-orange-500') \
+                                    .tooltip('No parse zone selected')
+                                no_zone = config.get_parse_zone_id() not in get_zone_options_for_version()
+                                parse_zone_row_warning.set_visibility(no_zone)
+                                ui_refs['parse_zone_row_warning'] = parse_zone_row_warning
+
                         # Settings panel (hidden by default)
                         if has_settings:
                             with ui.element('div').classes('pl-8 pt-2 w-full') as settings_panel:
@@ -779,6 +716,8 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                         else:
                                             config.set_parse_zone_id(None)
                                             config.set_parse_zone_label("")
+                                        ui_refs['parse_zone_warning'].set_visibility(not zone_id)
+                                        ui_refs['parse_zone_row_warning'].set_visibility(not zone_id)
 
                                     ui_refs['parse_zone_select'] = ui.select(
                                         label='Parse Zone',
@@ -786,6 +725,13 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                         value=config.get_parse_zone_id() if config.get_parse_zone_id() in get_zone_options_for_version() else None,
                                         on_change=on_zone_change
                                     ).classes('w-full max-w-xs')
+
+                                    parse_zone_warning = ui.label('No parse zone selected \u2014 parses will not be fetched.') \
+                                        .classes('text-xs text-orange-600')
+                                    parse_zone_warning.set_visibility(
+                                        config.get_parse_zone_id() not in get_zone_options_for_version()
+                                    )
+                                    ui_refs['parse_zone_warning'] = parse_zone_warning
 
                                     ui_refs['parse_filter_select'] = ui.select(
                                         label='Fetch Parses For',
@@ -803,8 +749,12 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                             config.set_parse_zone_id(None)
                                             config.set_parse_zone_label("")
                                         ui_refs['parse_zone_select'].update()
+                                        no_zone = ui_refs['parse_zone_select'].value is None
+                                        ui_refs['parse_zone_warning'].set_visibility(no_zone)
+                                        ui_refs['parse_zone_row_warning'].set_visibility(no_zone)
 
                                     register_game_version_callback(refresh_parse_zone_options)
+                                    register_pyrewood_mode_callback(refresh_parse_zone_options)
 
             # SortableJS integration
             ui.add_body_html('''
@@ -901,13 +851,15 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                             if not is_available:
                                 checkbox.disable()
 
-                            # Store reference for dependent metrics so they can be updated
-                            if metric_id in METRICS_REQUIRING_EQUIPPED:
-                                custom_metric_checkboxes[metric_id] = checkbox
+                            # Store reference for all custom mode checkboxes
+                            custom_metric_checkboxes[metric_id] = checkbox
 
                             def make_handler(mid):
                                 def handler(e):
+                                    if _syncing_checkboxes:
+                                        return
                                     set_metric_enabled(mid, e.value)
+                                    config.save_mode_metrics('custom')
                                     notify_metric_change()
                                 return handler
 
@@ -927,6 +879,15 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                     icon='settings',
                                     on_click=lambda mid=metric_id: toggle_custom_settings_panel(mid)
                                 ).props('flat dense round').classes('text-gray-500')
+
+                            # Parse zone warning icon (visible even when settings panel is closed)
+                            if metric_id == "parses":
+                                parse_zone_row_warning_custom = ui.icon('warning_amber') \
+                                    .classes('text-orange-500') \
+                                    .tooltip('No parse zone selected')
+                                no_zone = config.get_parse_zone_id() not in get_zone_options_for_version()
+                                parse_zone_row_warning_custom.set_visibility(no_zone)
+                                ui_refs['parse_zone_row_warning_custom'] = parse_zone_row_warning_custom
 
                         # Settings panel (hidden by default)
                         if has_settings:
@@ -975,6 +936,8 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                         else:
                                             config.set_parse_zone_id(None)
                                             config.set_parse_zone_label("")
+                                        ui_refs['parse_zone_warning_custom'].set_visibility(not zone_id)
+                                        ui_refs['parse_zone_row_warning_custom'].set_visibility(not zone_id)
 
                                     ui_refs['parse_zone_select_custom'] = ui.select(
                                         label='Parse Zone',
@@ -982,6 +945,13 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                         value=config.get_parse_zone_id() if config.get_parse_zone_id() in get_zone_options_for_version() else None,
                                         on_change=on_zone_change_custom
                                     ).classes('w-full max-w-xs')
+
+                                    parse_zone_warning_custom = ui.label('No parse zone selected \u2014 parses will not be fetched.') \
+                                        .classes('text-xs text-orange-600')
+                                    parse_zone_warning_custom.set_visibility(
+                                        config.get_parse_zone_id() not in get_zone_options_for_version()
+                                    )
+                                    ui_refs['parse_zone_warning_custom'] = parse_zone_warning_custom
 
                                     ui_refs['parse_filter_select_custom'] = ui.select(
                                         label='Fetch Parses For',
@@ -999,8 +969,12 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                             config.set_parse_zone_id(None)
                                             config.set_parse_zone_label("")
                                         ui_refs['parse_zone_select_custom'].update()
+                                        no_zone = ui_refs['parse_zone_select_custom'].value is None
+                                        ui_refs['parse_zone_warning_custom'].set_visibility(no_zone)
+                                        ui_refs['parse_zone_row_warning_custom'].set_visibility(no_zone)
 
                                     register_game_version_callback(refresh_parse_zone_options_custom)
+                                    register_pyrewood_mode_callback(refresh_parse_zone_options_custom)
 
         # Custom Policy Editor card
         with ui.card().classes('w-full p-4 mb-4'):

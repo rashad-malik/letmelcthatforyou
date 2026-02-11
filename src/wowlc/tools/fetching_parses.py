@@ -4,10 +4,9 @@ Fetching Parses Tool for WoW MCP Server
 This module provides a tool to fetch parse data from WarcraftLogs for a list of candidates.
 This is the second stage of loot decision - getting performance metrics for selected raiders.
 
-Returns: Parse columns (Best/Median for current and previous phase zones)
+Returns: Parse columns (Best/Median for specified zones)
 """
 
-from datetime import date, datetime
 from dataclasses import dataclass
 from typing import Optional, List
 import pandas as pd
@@ -18,154 +17,11 @@ from ..services.wcl_client import WarcraftLogsClient
 from ..services.tmb_manager import TMBDataManager
 
 
-# Phase configuration for TBC Classic
-PHASES = [
-    {"name": "Phase 1", "start": "2021-06-01", "zones": [1007, 1008], "label": "Kara/Gruul/Mag"},
-    {"name": "Phase 2", "start": "2021-09-15", "zones": [1010], "label": "SSC/TK"},
-    {"name": "Phase 3", "start": "2022-01-27", "zones": [1011], "label": "BT/Hyjal"},
-    {"name": "Phase 4", "start": "2022-03-24", "zones": [1012], "label": "Zul'Aman"},
-    {"name": "Phase 5", "start": "2022-05-10", "zones": [1013], "label": "Sunwell"}
-]
-
-# Only considering 40-man raids for Vanilla Fresh
-PHASES_FRESH = [
-    {"name": "Phase 1", "zones": [1028], "label": "MC"},
-    {"name": "Phase 3", "zones": [1034], "label": "BWL"},
-    {"name": "Phase 5", "zones": [1035], "label": "AQ40"},
-    {"name": "Phase 6", "zones": [1036], "label": "Naxx"}
-]
-
-
 @dataclass
 class FetchingParsesResult:
     """Container for fetching parses tool output."""
     parse_zones: List[dict]
     parses_df: pd.DataFrame
-
-
-def get_reference_date() -> date:
-    """
-    Get the reference date for loot council calculations.
-
-    Returns the configured reference date only when Pyrewood Developer Mode
-    is enabled (for testing/development). Otherwise always returns today's date.
-    """
-    config = get_config_manager()
-
-    # Only use reference date when Pyrewood Developer Mode is enabled
-    if config.get_pyrewood_dev_mode():
-        ref_date_str = config.get_reference_date()
-        if ref_date_str:
-            return datetime.strptime(ref_date_str, "%Y-%m-%d").date()
-
-    return date.today()
-
-
-def get_current_phase(reference_date: date) -> dict:
-    """
-    Determine which phase is active for the given reference date.
-    Uses client_version config to determine if using TBC or Fresh phases.
-
-    Returns:
-        Dict with phase info including name, zones, and label
-    """
-    config = get_config_manager()
-    client_version = config.get_wcl_client_version().strip().lower()
-
-    if client_version == "fresh":
-        # For Fresh, default to the latest phase available
-        return PHASES_FRESH[-1]
-    else:
-        # TBC Classic logic with date-based phases
-        current_phase = PHASES[0]  # Default to Phase 1
-
-        for phase in PHASES:
-            phase_start = datetime.strptime(phase["start"], "%Y-%m-%d").date()
-            if reference_date >= phase_start:
-                current_phase = phase
-            else:
-                break
-
-        return current_phase
-
-
-def get_phase_index(phase: dict) -> int:
-    """
-    Get the index of a phase in the appropriate phases list.
-    Uses client_version config to determine which phase list to search.
-    """
-    config = get_config_manager()
-    client_version = config.get_wcl_client_version().strip().lower()
-    phases = PHASES_FRESH if client_version == "fresh" else PHASES
-
-    for i, p in enumerate(phases):
-        if p["name"] == phase["name"]:
-            return i
-    return 0
-
-
-def get_parse_zones_for_phase(reference_date: date) -> list[dict]:
-    """
-    Get the zone configurations for parse columns based on the current phase.
-
-    Returns a list of dicts with zone_id and label for each parse column pair.
-
-    Logic for TBC:
-    - Phase 1: Karazhan (1007) + Gruul/Mag (1008)
-    - Phase 2: Karazhan (1007) + SSC/TK (1010)
-    - Phase 3+: Current phase zone + Previous phase zone
-
-    Logic for Fresh:
-    - Phase 1 (MC): MC only
-    - Phase 3+ (BWL/AQ40/Naxx): Current phase zone + Previous phase zone
-    """
-    config = get_config_manager()
-    client_version = config.get_wcl_client_version().strip().lower()
-    current_phase = get_current_phase(reference_date)
-    phase_idx = get_phase_index(current_phase)
-
-    if client_version == "fresh":
-        # Fresh logic
-        if phase_idx == 0:  # Phase 1 (MC)
-            return [
-                {"zone_id": current_phase["zones"][0], "label": current_phase["label"]}
-            ]
-        else:  # Phase 3+ (BWL, AQ40, Naxx)
-            current_zone_id = current_phase["zones"][0]
-            current_label = current_phase["label"]
-
-            prev_phase = PHASES_FRESH[phase_idx - 1]
-            prev_zone_id = prev_phase["zones"][0]
-            prev_label = prev_phase["label"]
-
-            return [
-                {"zone_id": current_zone_id, "label": current_label},
-                {"zone_id": prev_zone_id, "label": prev_label}
-            ]
-    else:
-        # TBC logic
-        if phase_idx == 0:  # Phase 1
-            return [
-                {"zone_id": 1007, "label": "Kara"},
-                {"zone_id": 1008, "label": "Gruul/Mag"}
-            ]
-        elif phase_idx == 1:  # Phase 2
-            return [
-                {"zone_id": 1007, "label": "Kara"},
-                {"zone_id": 1010, "label": "SSC/TK"}
-            ]
-        else:  # Phase 3+
-            current_zone_id = current_phase["zones"][0]
-            current_label = current_phase["label"]
-
-            prev_phase = PHASES[phase_idx - 1]
-            prev_zone_id = prev_phase["zones"][0]
-            prev_label = prev_phase["label"]
-
-            return [
-                {"zone_id": current_zone_id, "label": current_label},
-                {"zone_id": prev_zone_id, "label": prev_label}
-            ]
 
 
 def get_raider_parses(
@@ -254,7 +110,7 @@ def get_all_raider_parses(
         character_name: Name of the character
         server_slug: Server slug
         server_region: Server region
-        parse_zones: List of zone configs from get_parse_zones_for_phase()
+        parse_zones: List of zone configs with 'zone_id' and 'label' keys
         metric: Metric to use for rankings ("dps" or "hps")
 
     Returns:
@@ -292,12 +148,17 @@ def generate_fetching_parses(
         candidate_names: List of raider names to fetch parses for
         server_slug: WarcraftLogs server slug (or set WCL_SERVER_SLUG env var)
         server_region: WarcraftLogs server region (or set WCL_SERVER_REGION env var)
-        parse_zones: Optional list of zone configs (defaults to phase-appropriate zones)
-                     Each dict should have 'zone_id' and 'label' keys
+        parse_zones: List of zone configs. Each dict should have 'zone_id' and 'label' keys.
 
     Returns:
         FetchingParsesResult containing parse zone info and parses DataFrame
+
+    Raises:
+        ValueError: If parse_zones is not provided
     """
+    if parse_zones is None:
+        raise ValueError("parse_zones must be provided")
+
     # Get configuration from config if not provided
     config = get_config_manager()
     server_slug = server_slug or config.get_wcl_server_slug() or "pyrewood-village"
@@ -305,11 +166,6 @@ def generate_fetching_parses(
 
     # Initialize WCL client
     wcl = WarcraftLogsClient()
-
-    # Get reference date and determine parse zones (if not provided)
-    if parse_zones is None:
-        reference_date = get_reference_date()
-        parse_zones = get_parse_zones_for_phase(reference_date)
 
     if not candidate_names:
         # Build empty DataFrame with dynamic columns
@@ -394,9 +250,9 @@ def fetching_parses_tool(candidate_names: List[str], parse_zones: Optional[List[
 
     Args:
         candidate_names: List of raider names to fetch parses for
-        parse_zones: Optional list of zone configs (defaults to phase-appropriate zones)
+        parse_zones: Optional list of zone configs.
                      Each dict should have 'zone_id' and 'label' keys
-                     Example: [{"zone_id": 1007, "label": "Kara"}, {"zone_id": 1010, "label": "SSC/TK"}]
+                     Example: [{"zone_id": 1047, "label": "Kara"}, {"zone_id": 1048, "label": "Gruul/Mag"}]
 
     Returns:
         Dictionary containing:

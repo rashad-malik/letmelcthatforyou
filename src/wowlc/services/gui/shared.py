@@ -25,9 +25,9 @@ POLICY_PATH = str(paths.get_guild_policy_path())
 _metric_change_callbacks = []
 _tmb_auth_callbacks = []
 _game_version_callbacks = []
-_blizzard_cred_callbacks = []
 _connection_save_callbacks = []
 _currently_equipped_callbacks = []
+_pyrewood_mode_callbacks = []
 
 
 def clear_metric_change_callbacks():
@@ -95,28 +95,6 @@ def notify_game_version_change():
             pass  # Silently ignore errors in callbacks
 
 
-def clear_blizzard_cred_callbacks():
-    """Clear all registered Blizzard credential callbacks."""
-    global _blizzard_cred_callbacks
-    _blizzard_cred_callbacks = []
-
-
-def register_blizzard_cred_callback(callback):
-    """Register a callback to be called when Blizzard credentials are saved."""
-    # Clear existing callbacks first to avoid duplicates on page reload
-    clear_blizzard_cred_callbacks()
-    _blizzard_cred_callbacks.append(callback)
-
-
-def notify_blizzard_cred_change():
-    """Notify all registered callbacks that Blizzard credentials have changed."""
-    for callback in _blizzard_cred_callbacks:
-        try:
-            callback()
-        except Exception:
-            pass  # Silently ignore errors in callbacks
-
-
 def clear_connection_save_callbacks():
     """Clear all registered connection save callbacks."""
     global _connection_save_callbacks
@@ -156,6 +134,27 @@ def register_currently_equipped_callback(callback):
 def notify_currently_equipped_change():
     """Notify all registered callbacks that currently equipped settings have changed."""
     for callback in _currently_equipped_callbacks:
+        try:
+            callback()
+        except Exception:
+            pass  # Silently ignore errors in callbacks
+
+
+def clear_pyrewood_mode_callbacks():
+    """Clear all registered pyrewood mode callbacks."""
+    global _pyrewood_mode_callbacks
+    _pyrewood_mode_callbacks = []
+
+
+def register_pyrewood_mode_callback(callback):
+    """Register a callback to be called when pyrewood dev mode changes."""
+    if callback not in _pyrewood_mode_callbacks:
+        _pyrewood_mode_callbacks.append(callback)
+
+
+def notify_pyrewood_mode_change():
+    """Notify all registered callbacks that pyrewood dev mode has changed."""
+    for callback in _pyrewood_mode_callbacks:
         try:
             callback()
         except Exception:

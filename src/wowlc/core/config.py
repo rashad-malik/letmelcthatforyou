@@ -12,6 +12,25 @@ import json
 from typing import Optional, List
 
 
+# The 7 decision metrics that have independent per-mode (Simple/Custom) toggle state
+_DECISION_METRIC_KEYS = [
+    "show_attendance", "show_recent_loot", "show_wishlist_position",
+    "show_parses", "show_ilvl_comparisons", "show_tier_token_counts",
+    "show_last_item_received",
+]
+
+# Default per-mode metric states
+_DEFAULT_MODE_METRICS = {
+    "show_attendance": False,
+    "show_recent_loot": False,
+    "show_wishlist_position": False,
+    "show_parses": False,
+    "show_ilvl_comparisons": False,
+    "show_tier_token_counts": False,
+    "show_last_item_received": False,
+}
+
+
 class ConfigManager:
     """
     Manages all application configuration.
@@ -51,17 +70,17 @@ class ConfigManager:
             "loot_days": 14
         },
         "player_metrics": {
-            "show_attendance": True,
-            "show_recent_loot": True,
-            "show_alt_status": True,
-            "mains_over_alts": True,
-            "show_wishlist_position": True,
+            "show_attendance": False,
+            "show_recent_loot": False,
+            "show_alt_status": False,
+            "mains_over_alts": False,
+            "show_wishlist_position": False,
             "show_parses": False,
             "parse_zone_id": None,
             "parse_zone_label": "",
             "parse_filter_mode": "dps_only",
             "policy_mode": "simple",
-            "metric_order": ["attendance", "recent_loot", "wishlist_position", "alt_status", "parses", "ilvl_comparison", "tier_token_counts"],
+            "metric_order": ["attendance", "ilvl_comparison", "last_item_received", "parses", "recent_loot", "tier_token_counts", "wishlist_position"],
             "currently_equipped_enabled": False,
             "currently_equipped_api_source": "blizzard",
             "show_ilvl_comparisons": False,
@@ -69,7 +88,9 @@ class ConfigManager:
             "tank_priority": False,
             "show_raider_notes": False,
             "raider_note_source": "public_note",
-            "show_last_item_received": False
+            "show_last_item_received": False,
+            "simple_mode_metrics": dict(_DEFAULT_MODE_METRICS),
+            "custom_mode_metrics": dict(_DEFAULT_MODE_METRICS),
         },
         "export_path": "",
         "llm": {
@@ -473,6 +494,34 @@ class ConfigManager:
         if "player_metrics" not in self._config:
             self._config["player_metrics"] = {}
         self._config["player_metrics"]["policy_mode"] = value
+        self._save_config()
+
+    def save_mode_metrics(self, mode: str) -> None:
+        """Save current active metric flags into the specified mode's shadow storage.
+
+        Args:
+            mode: Either 'simple' or 'custom'
+        """
+        pm = self._config.setdefault("player_metrics", {})
+        storage_key = f"{mode}_mode_metrics"
+        pm[storage_key] = {
+            key: pm.get(key, _DEFAULT_MODE_METRICS.get(key, False))
+            for key in _DECISION_METRIC_KEYS
+        }
+        self._save_config()
+
+    def load_mode_metrics(self, mode: str) -> None:
+        """Load metric flags from the specified mode's shadow storage into active flags.
+
+        Args:
+            mode: Either 'simple' or 'custom'
+        """
+        pm = self._config.setdefault("player_metrics", {})
+        storage_key = f"{mode}_mode_metrics"
+        stored = pm.get(storage_key, {})
+        for key in _DECISION_METRIC_KEYS:
+            if key in stored:
+                pm[key] = stored[key]
         self._save_config()
 
     def get_metric_order(self) -> List[str]:

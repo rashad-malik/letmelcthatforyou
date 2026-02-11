@@ -46,40 +46,6 @@ def get_access_token():
         print(f"Error getting token: {e}")
         return None
 
-def fetch_realms(access_token, region="eu", namespace="dynamic-classic1x-eu"):
-    """
-    Fetches all available realms for a region.
-
-    Args:
-        access_token: OAuth access token
-        region: Region code (e.g., "eu", "us")
-        namespace: API namespace (e.g., "dynamic-classic1x-eu" for Classic Era)
-
-    Returns:
-        List of realm dictionaries with name and slug
-    """
-    url = f"https://{region}.api.blizzard.com/data/wow/realm/index"
-
-    params = {
-        "namespace": namespace,
-        "locale": "en_GB"
-    }
-
-    headers = {
-        "Authorization": f"Bearer {access_token}"
-    }
-
-    try:
-        response = requests.get(url, headers=headers, params=params)
-        response.raise_for_status()
-        data = response.json()
-
-        return data.get("realms", [])
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching realms: {e}")
-        return []
-
-
 def fetch_character_gear_names(access_token, region, realm, character, namespace=None):
     """
     Fetches the equipped gear for a WoW Classic character.

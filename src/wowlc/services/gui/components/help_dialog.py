@@ -146,13 +146,6 @@ def create_help_dialog():
                                     'item level upgrades and tier set progress.'
                                 ).classes('text-sm')
 
-                            with ui.card().classes('w-full p-3 bg-gray-50 dark:bg-gray-700'):
-                                ui.label('Raider Notes').classes('font-semibold mb-1')
-                                ui.label(
-                                    'Click "Fetch Raiders" to load your roster, then add custom notes for individual '
-                                    'players (e.g., "Returning player, needs catch-up gear").'
-                                ).classes('text-sm')
-
                     # Run LC
                     with ui.card().classes('w-full p-4'):
                         with ui.row().classes('items-center gap-2 mb-3'):

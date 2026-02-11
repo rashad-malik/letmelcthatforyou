@@ -9,7 +9,6 @@ import webbrowser
 from ..shared import (
     config,
     notify_tmb_auth_change,
-    notify_blizzard_cred_change,
     notify_connection_save,
     register_field_for_tracking,
     check_field_changed,
@@ -550,7 +549,6 @@ def create_connections_tab():
             mark_field_saved('blizzard_client_secret', client_secret)
 
             ui.notify('Blizzard API settings saved!', type='positive')
-            notify_blizzard_cred_change()  # Notify Settings tab to refresh server section
             notify_connection_save()
 
         with ui.row().classes('w-full gap-2 mt-4'):

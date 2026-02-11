@@ -5,7 +5,7 @@ Supports two modes: Single Item (for quick lookups) and Raid Zone (batch process
 """
 import asyncio
 from nicegui import ui, run
-from ..shared import config, register_connection_save_callback, register_game_version_callback, register_currently_equipped_callback
+from ..shared import config, register_connection_save_callback, register_game_version_callback, register_pyrewood_mode_callback, register_currently_equipped_callback
 from wowlc.tools.fetching_current_items import cache_all_raiders_gear, get_cache_info
 from ...lc_processor import (
     LootCouncilProcessor,
@@ -19,6 +19,12 @@ from .connections import check_connections_configured
 
 # Raid zones by game version
 TBC_RAID_ZONES = [
+    "Gruul's Lair",
+    "Magtheridon's Lair",
+]
+
+# Legacy TBC raid zones (original TBC Classic) - used when Pyrewood dev mode is enabled
+TBC_RAID_ZONES_LEGACY = [
     "Gruul's Lair",
     "Magtheridon's Lair",
     "Serpentshrine Cavern",
@@ -501,6 +507,8 @@ def create_run_lc_tab(connection_refs: dict, game_version_toggle):
         version = game_version_toggle.value if hasattr(game_version_toggle, 'value') else 'Era'
         if version == 'Era':
             return ERA_RAID_ZONES
+        if config.get_pyrewood_dev_mode():
+            return TBC_RAID_ZONES_LEGACY
         return TBC_RAID_ZONES
 
     # Extract LLM refs for processing
@@ -876,5 +884,6 @@ def create_run_lc_tab(connection_refs: dict, game_version_toggle):
         ui_refs['lc_zone'].update()
 
     register_game_version_callback(refresh_zone_options)
+    register_pyrewood_mode_callback(refresh_zone_options)
 
     return ui_refs
