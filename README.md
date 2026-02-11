@@ -1,4 +1,6 @@
-# Let Me LC That For You
+![Let Me LC That For You](assets/full_logo.png)
+
+*Logo by [Erik Padamans](https://dribbble.com/ErikPadamans)*
 
 **An open source, AI-powered loot council assistant for World of Warcraft Classic (TBC Anniversary & Era)**
 

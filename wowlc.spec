@@ -242,5 +242,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,                   # Add 'assets/icon.ico' if you have one
+    icon='assets/logo.ico',
 )

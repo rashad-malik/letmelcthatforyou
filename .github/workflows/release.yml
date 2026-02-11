@@ -102,9 +102,9 @@ jobs:
           cp appimage/letmelcthatforyou.desktop AppDir/usr/share/applications/
 
           # Copy icon if exists, otherwise create a placeholder
-          if [ -f "assets/icon.png" ]; then
-            cp assets/icon.png AppDir/letmelcthatforyou.png
-            cp assets/icon.png AppDir/usr/share/icons/hicolor/256x256/apps/letmelcthatforyou.png
+          if [ -f "assets/logo.png" ]; then
+            cp assets/logo.png AppDir/letmelcthatforyou.png
+            cp assets/logo.png AppDir/usr/share/icons/hicolor/256x256/apps/letmelcthatforyou.png
           else
             # Create a simple placeholder icon (256x256 blue gradient square)
             convert -size 256x256 gradient:#4a90d9-#2d5a87 /tmp/icon.png
