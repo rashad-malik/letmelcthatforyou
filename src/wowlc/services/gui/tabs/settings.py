@@ -563,16 +563,29 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                         row.classes(remove='opacity-50')
                     else:
                         row.classes(add='opacity-50')
+                # Update parse zone warnings when parses checkbox changes
+                if metric_id == "parses":
+                    no_zone = enabled and config.get_parse_zone_id() not in get_zone_options_for_version()
+                    if 'parse_zone_row_warning' in ui_refs:
+                        ui_refs['parse_zone_row_warning'].set_visibility(no_zone)
+                    if 'parse_zone_warning' in ui_refs:
+                        ui_refs['parse_zone_warning'].set_visibility(no_zone)
                 # Refresh rule preview
                 rule_preview.refresh()
                 notify_metric_change()
 
-            def on_metric_reorder(new_order):
-                """Handle metric reordering from drag-drop."""
-                if new_order:
-                    config.set_metric_order(new_order)
-                    rule_preview.refresh()
-                    notify_metric_change()
+            def on_metric_reorder(e):
+                """Handle metric reordering from drag-drop using indices."""
+                old_index = e.args.get('oldIndex')
+                new_index = e.args.get('newIndex')
+                if old_index is not None and new_index is not None:
+                    current = list(config.get_metric_order())
+                    if 0 <= old_index < len(current) and 0 <= new_index < len(current):
+                        item = current.pop(old_index)
+                        current.insert(new_index, item)
+                        config.set_metric_order(current)
+                        rule_preview.refresh()
+                        notify_metric_change()
 
             def update_equipped_dependent_metrics():
                 """Update state of metrics that depend on Currently Equipped."""
@@ -627,7 +640,6 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                         row_classes += ' opacity-50'
 
                     with ui.card().classes(row_classes) as row:
-                        row._props['data-id'] = metric_id
                         metric_rows[metric_id] = row
 
                         with ui.row().classes('items-center gap-2 w-full'):
@@ -665,7 +677,7 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                 parse_zone_row_warning = ui.icon('warning_amber') \
                                     .classes('text-orange-500') \
                                     .tooltip('No parse zone selected')
-                                no_zone = config.get_parse_zone_id() not in get_zone_options_for_version()
+                                no_zone = config.get_show_parses() and config.get_parse_zone_id() not in get_zone_options_for_version()
                                 parse_zone_row_warning.set_visibility(no_zone)
                                 ui_refs['parse_zone_row_warning'] = parse_zone_row_warning
 
@@ -729,7 +741,7 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                     parse_zone_warning = ui.label('No parse zone selected \u2014 parses will not be fetched.') \
                                         .classes('text-xs text-orange-600')
                                     parse_zone_warning.set_visibility(
-                                        config.get_parse_zone_id() not in get_zone_options_for_version()
+                                        config.get_show_parses() and config.get_parse_zone_id() not in get_zone_options_for_version()
                                     )
                                     ui_refs['parse_zone_warning'] = parse_zone_warning
 
@@ -769,12 +781,7 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                         ghostClass: 'opacity-30',
                         handle: '.drag-handle',
                         onEnd: function(evt) {
-                            const items = Array.from(container.querySelectorAll('.metric-item'))
-                                .map(el => el.dataset.id)
-                                .filter(id => id);
-                            if (items.length > 0) {
-                                emitEvent('metric-reorder', {order: items});
-                            }
+                            emitEvent('metric-reorder', {oldIndex: evt.oldIndex, newIndex: evt.newIndex});
                         }
                     });
                 }
@@ -792,7 +799,7 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
             </script>
             ''')
 
-            ui.on('metric-reorder', lambda e: on_metric_reorder(e.args.get('order', [])))
+            ui.on('metric-reorder', lambda e: on_metric_reorder(e))
 
         # --- Generated Rules Preview (inside Simple mode container) ---
         with ui.card().classes('w-full p-4 mb-4'):
@@ -860,6 +867,12 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                         return
                                     set_metric_enabled(mid, e.value)
                                     config.save_mode_metrics('custom')
+                                    if mid == "parses":
+                                        no_zone = e.value and config.get_parse_zone_id() not in get_zone_options_for_version()
+                                        if 'parse_zone_row_warning_custom' in ui_refs:
+                                            ui_refs['parse_zone_row_warning_custom'].set_visibility(no_zone)
+                                        if 'parse_zone_warning_custom' in ui_refs:
+                                            ui_refs['parse_zone_warning_custom'].set_visibility(no_zone)
                                     notify_metric_change()
                                 return handler
 
@@ -885,7 +898,7 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                 parse_zone_row_warning_custom = ui.icon('warning_amber') \
                                     .classes('text-orange-500') \
                                     .tooltip('No parse zone selected')
-                                no_zone = config.get_parse_zone_id() not in get_zone_options_for_version()
+                                no_zone = config.get_show_parses() and config.get_parse_zone_id() not in get_zone_options_for_version()
                                 parse_zone_row_warning_custom.set_visibility(no_zone)
                                 ui_refs['parse_zone_row_warning_custom'] = parse_zone_row_warning_custom
 
@@ -949,7 +962,7 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                     parse_zone_warning_custom = ui.label('No parse zone selected \u2014 parses will not be fetched.') \
                                         .classes('text-xs text-orange-600')
                                     parse_zone_warning_custom.set_visibility(
-                                        config.get_parse_zone_id() not in get_zone_options_for_version()
+                                        config.get_show_parses() and config.get_parse_zone_id() not in get_zone_options_for_version()
                                     )
                                     ui_refs['parse_zone_warning_custom'] = parse_zone_warning_custom
 

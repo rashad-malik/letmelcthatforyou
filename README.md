@@ -118,7 +118,7 @@ You'll need:
 4. **Go to "Core Connections" tab**:
    - Enter your TMB Guild ID, and authenticate your TMB session
    - Enter your WarcraftLogs Client ID and Secret
-   - Click "Authenticate TMB" to log in via Discord
+   - Enter your Blizzard API Client ID and Secret
    - Select your LLM provider and enter your API key
 5. **Go to "Settings" tab** - Configure which player metrics to include
 6. **Go to "Run LC" tab**:
@@ -139,13 +139,16 @@ You'll need:
 ### Core Connections Tab
 - **ThatsMyBIS** - Guild ID and Discord authentication
 - **WarcraftLogs** - API credentials for pulling log data
-- **Blizzard API** - For real-time character equipment and server lists
+- **Blizzard API** - For real-time character equipment (armoury)
 - **LLM Provider** - Select AI provider and model, enter API key
 
 ### Settings Tab
-- **Player Metrics** - Toggle which metrics the AI considers
-- **Raider Notes** - Add per-player notes for special considerations
-- **Cache Settings** - Optional TMB data refresh button
+- **Candidate Rules** - Configure who can receive loot: allow alts, give priority to mains, enable tank priority, and include raider notes (public or officer)
+- **Policy Mode** - Choose between Simple (metric-based priority rules) or Custom (freeform written policy)
+- **Decision Priorities** (Simple mode) - Drag-and-drop metrics to set priority order; top = highest priority. Each metric can be toggled on/off and some have sub-settings (e.g. attendance lookback days, parse zone, loot lookback days)
+- **Generated Rules Preview** (Simple mode) - Live preview of the numbered rules that will be sent to the LLM based on your metric selections
+- **Tracked Metrics & Custom Policy** (Custom mode) - Toggle which metrics appear in candidate data, and write your own guild loot policy in a freeform text editor
+- **Currently Equipped** - Optionally fetch each raider's equipped gear via the Blizzard API or WarcraftLogs API, enabling ilvl upgrade comparisons and tier token tracking
 
 ### Run LC Tab
 - **Mode Selection** - Single item lookup or full raid zone processing
@@ -196,9 +199,9 @@ Toggle metrics on/off in Settings to customise what the AI considers.
 ### User Files (Documents folder)
 ```
 Documents/Let Me LC That For You/
-├── guild_loot_policy.md    # Your customisable loot policy
-├── raider_notes.json       # Per-player notes
+├── guild_loot_policy.md    # Your customisable loot policy if using Custom mode
 └── Exports/                # CSV exports of loot decisions
+└── Logs/                # Log file for debugging and error tracking
 ```
 
 ### Application Data (AppData folder)
