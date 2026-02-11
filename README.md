@@ -39,7 +39,16 @@ Built by and for the WoW Classic community.
 - **Batch Processing** - Process entire raid zones item-by-item with progress tracking
 - **CSV Export** - Save all decisions for review and record-keeping
 
-<!-- Screenshots coming soon -->
+<table>
+  <tr>
+    <td align="center"><img src="assets/demo_integrations.gif" width="400" alt="Setup the main integrations"><br><b>Setup the main integrations</b></td>
+    <td align="center"><img src="assets/demo_llm.gif" width="400" alt="Choose your LLM and model"><br><b>Choose your LLM and model</b></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/demo_metrics.gif" width="400" alt="Select player metrics and loot policies"><br><b>Select player metrics and loot policies</b></td>
+    <td align="center"><img src="assets/demo_results.gif" width="400" alt="Get LC suggestions with a detailed rationale"><br><b>Get LC suggestions with detailed rationale</b></td>
+  </tr>
+</table>
 
 ---
 
@@ -95,7 +104,9 @@ You'll need:
 2. **WarcraftLogs API credentials** - [Create an API client here](https://www.warcraftlogs.com/api/clients) with the following redirect URLs:
    - `https://www.warcraftlogs.com/api/v2-explorer`
    - `http://localhost:8765/callback`
-3. **Blizzard API credentials** - [Create an API client here](https://develop.battle.net/access/clients)
+3. **Blizzard API credentials** - [Create an API client here](https://develop.battle.net/access/clients) with the following redirect URLs:
+   - `https://community.developer.battle.net`
+   - `http://localhost`
 4. **LLM API key** - From any supported provider (Anthropic, OpenAI, etc.)
 
 ### First-Time Setup

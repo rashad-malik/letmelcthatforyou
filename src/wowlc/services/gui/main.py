@@ -82,7 +82,7 @@ def main_page():
                             ui.label('Core Connections - Set up TMB, WCL, Blizzard, and LLM connections').classes('text-sm')
                         with ui.row().classes('items-center gap-2'):
                             ui.icon('settings', size='sm')
-                            ui.label('Settings - Configure metrics, policy, and raider notes').classes('text-sm')
+                            ui.label('Settings - Configure metrics and loot policy').classes('text-sm')
 
         # Main settings card
         with ui.card().classes('p-6 w-full max-w-4xl'):
