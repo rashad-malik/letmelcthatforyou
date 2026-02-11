@@ -46,7 +46,7 @@ Built by and for the WoW Classic community.
   </tr>
   <tr>
     <td align="center"><img src="assets/demo_metrics.gif" width="400" alt="Select player metrics and loot policies"><br><b>Select player metrics and loot policies</b></td>
-    <td align="center"><img src="assets/demo_results.gif" width="400" alt="Get LC suggestions with a detailed rationale"><br><b>Get LC suggestions with detailed rationale</b></td>
+    <td align="center"><img src="assets/demo_results.gif" width="400" alt="Get LC suggestions with detailed descriptions"><br><b>Get LC suggestions with detailed descriptions</b></td>
   </tr>
 </table>
 
