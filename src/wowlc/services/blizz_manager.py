@@ -1,5 +1,5 @@
 """
-Blizzard API Client for WoW Loot Council MCP Server.
+Blizzard API Client for Let Me LC That For You.
 
 This module handles OAuth2 authentication and API queries to the
 Blizzard World of Warcraft API. It supports client credentials flow

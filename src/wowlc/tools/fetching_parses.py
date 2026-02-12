@@ -1,5 +1,5 @@
 """
-Fetching Parses Tool for WoW MCP Server
+Fetching Parses Tool for Let Me LC That For You
 
 This module provides a tool to fetch parse data from WarcraftLogs for a list of candidates.
 This is the second stage of loot decision - getting performance metrics for selected raiders.
@@ -240,10 +240,10 @@ def format_fetching_parses_output(result: FetchingParsesResult) -> str:
     return "\n".join(lines)
 
 
-# MCP Tool function
+# Tool function
 def fetching_parses_tool(candidate_names: List[str], parse_zones: Optional[List[dict]] = None) -> dict:
     """
-    MCP Tool: Fetch parse data for the given candidate raiders.
+    Fetch parse data for the given candidate raiders.
 
     This is the second stage of loot decision - fetching WarcraftLogs performance
     metrics for the candidates identified in stage 1.

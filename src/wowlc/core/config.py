@@ -1,5 +1,5 @@
 """
-Centralized configuration management for WoW LC MCP.
+Centralized configuration management for Let Me LC That For You.
 
 Provides a single source of truth for all application configuration,
 replacing the previous .env file approach.
