@@ -51,6 +51,8 @@
   </tr>
 </table>
 
+> **Note:** All API keys and credentials shown in the demos above are fake. Never publicly reveal your real API keys or secrets.
+
 ---
 
 ## Installation
@@ -201,7 +203,7 @@ Toggle metrics on/off in Settings to customise what the AI considers.
 Documents/Let Me LC That For You/
 ├── guild_loot_policy.md    # Your customisable loot policy if using Custom mode
 └── Exports/                # CSV exports of loot decisions
-└── Logs/                # Log file for debugging and error tracking
+└── Logs/                   # Log file for debugging and error tracking
 ```
 
 ### Application Data (AppData folder)
