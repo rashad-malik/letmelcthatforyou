@@ -5,7 +5,7 @@ Combines General Settings (server, cache) and Council Settings (metrics, raider 
 from nicegui import ui
 import json
 import os
-from pathlib import Path
+from wowlc.core.paths import get_path_manager
 from ..shared import (
     config,
     POLICY_PATH,
@@ -104,7 +104,9 @@ def _load_realm_data() -> dict:
     """Load realm data from bundled realms.json (cached after first load)."""
     global _realm_data
     if _realm_data is None:
-        realms_file = Path(__file__).resolve().parent.parent.parent.parent.parent.parent / "data" / "realms.json"
+        realms_file = get_path_manager().get_bundled_resource("data/realms.json")
+        if realms_file is None:
+            raise FileNotFoundError("Bundled realms.json not found")
         with open(realms_file, "r", encoding="utf-8") as f:
             _realm_data = json.load(f)
     return _realm_data
@@ -728,8 +730,9 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                         else:
                                             config.set_parse_zone_id(None)
                                             config.set_parse_zone_label("")
-                                        ui_refs['parse_zone_warning'].set_visibility(not zone_id)
-                                        ui_refs['parse_zone_row_warning'].set_visibility(not zone_id)
+                                        show_warning = config.get_show_parses() and not zone_id
+                                        ui_refs['parse_zone_warning'].set_visibility(show_warning)
+                                        ui_refs['parse_zone_row_warning'].set_visibility(show_warning)
 
                                     ui_refs['parse_zone_select'] = ui.select(
                                         label='Parse Zone',
@@ -762,8 +765,9 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                             config.set_parse_zone_label("")
                                         ui_refs['parse_zone_select'].update()
                                         no_zone = ui_refs['parse_zone_select'].value is None
-                                        ui_refs['parse_zone_warning'].set_visibility(no_zone)
-                                        ui_refs['parse_zone_row_warning'].set_visibility(no_zone)
+                                        show_warning = config.get_show_parses() and no_zone
+                                        ui_refs['parse_zone_warning'].set_visibility(show_warning)
+                                        ui_refs['parse_zone_row_warning'].set_visibility(show_warning)
 
                                     register_game_version_callback(refresh_parse_zone_options)
                                     register_pyrewood_mode_callback(refresh_parse_zone_options)
@@ -949,8 +953,9 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                         else:
                                             config.set_parse_zone_id(None)
                                             config.set_parse_zone_label("")
-                                        ui_refs['parse_zone_warning_custom'].set_visibility(not zone_id)
-                                        ui_refs['parse_zone_row_warning_custom'].set_visibility(not zone_id)
+                                        show_warning = config.get_show_parses() and not zone_id
+                                        ui_refs['parse_zone_warning_custom'].set_visibility(show_warning)
+                                        ui_refs['parse_zone_row_warning_custom'].set_visibility(show_warning)
 
                                     ui_refs['parse_zone_select_custom'] = ui.select(
                                         label='Parse Zone',
@@ -983,8 +988,9 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                             config.set_parse_zone_label("")
                                         ui_refs['parse_zone_select_custom'].update()
                                         no_zone = ui_refs['parse_zone_select_custom'].value is None
-                                        ui_refs['parse_zone_warning_custom'].set_visibility(no_zone)
-                                        ui_refs['parse_zone_row_warning_custom'].set_visibility(no_zone)
+                                        show_warning = config.get_show_parses() and no_zone
+                                        ui_refs['parse_zone_warning_custom'].set_visibility(show_warning)
+                                        ui_refs['parse_zone_row_warning_custom'].set_visibility(show_warning)
 
                                     register_game_version_callback(refresh_parse_zone_options_custom)
                                     register_pyrewood_mode_callback(refresh_parse_zone_options_custom)
