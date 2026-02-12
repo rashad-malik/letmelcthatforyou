@@ -166,10 +166,36 @@ def create_dev_dialog():
 
                         ui.label('Authenticate with WarcraftLogs to obtain a user token for API access (used for archived logs).').classes('mb-2')
 
+                        ui_refs['wcl_user_token'] = ui.input(
+                            label='WCL User Token (optional)',
+                            value=config.get_wcl_user_token(),
+                            password=True,
+                            password_toggle_button=True
+                        ).classes('w-full')
+                        wcl_user_token_unsaved = ui.label('Unsaved changes!').classes('text-red-500 text-xs')
+                        wcl_user_token_unsaved.visible = False
+
+                        initial_wcl_user_token = config.get_wcl_user_token() or ""
+                        register_field_for_tracking('wcl_user_token', initial_wcl_user_token, wcl_user_token_unsaved)
+                        ui_refs['wcl_user_token'].on_value_change(
+                            lambda e: check_field_changed('wcl_user_token', e.value or "")
+                        )
+
+                        def save_wcl_user_token():
+                            value = ui_refs['wcl_user_token'].value.strip() if ui_refs['wcl_user_token'].value else ""
+                            config.set_wcl_user_token(value)
+                            mark_field_saved('wcl_user_token', value)
+                            ui.notify('WCL user token saved!', type='positive')
+
+                        with ui.row().classes('w-full gap-2 mt-2'):
+                            ui.button('Save', on_click=save_wcl_user_token, icon='save')
+
+                        ui.separator().classes('my-2')
+
                         wcl_auth_button = ui.button(
                             'Authenticate WCL',
                             on_click=lambda: run_wcl_authentication(wcl_auth_button)
-                        ).classes('w-full')
+                        )
                         ui_refs['wcl_auth_button'] = wcl_auth_button
 
                         # Check initial auth status after UI is ready

@@ -124,7 +124,7 @@ def check_tmb_session(tmb_guild_id):
         ui.notify('\n'.join(results), type='positive' if not errors else 'info', multi_line=True)
 
 
-def check_wcl_credentials(wcl_client_id, wcl_client_secret, wcl_user_token):
+def check_wcl_credentials(wcl_client_id, wcl_client_secret):
     """Validate WCL credentials by testing authentication and token validity."""
     results = []
     errors = []
@@ -145,7 +145,7 @@ def check_wcl_credentials(wcl_client_id, wcl_client_secret, wcl_user_token):
     else:
         errors.append("Client ID or Secret missing")
 
-    user_token = wcl_user_token.value.strip()
+    user_token = (config.get_wcl_user_token() or "").strip()
 
     if user_token:
         try:
@@ -435,21 +435,6 @@ def create_connections_tab():
             lambda e: check_field_changed('wcl_client_secret', e.value or "")
         )
 
-        ui_refs['wcl_user_token'] = ui.input(
-            label='WCL User Token (optional)',
-            value=config.get_wcl_user_token(),
-            password=True,
-            password_toggle_button=True
-        ).classes('w-full')
-        wcl_user_token_unsaved = ui.label('Unsaved changes!').classes('text-red-500 text-xs')
-        wcl_user_token_unsaved.visible = False
-
-        initial_wcl_user_token = config.get_wcl_user_token() or ""
-        register_field_for_tracking('wcl_user_token', initial_wcl_user_token, wcl_user_token_unsaved)
-        ui_refs['wcl_user_token'].on_value_change(
-            lambda e: check_field_changed('wcl_user_token', e.value or "")
-        )
-
         ui_refs['wcl_redirect_uri'] = ui.input(
             label='WCL Redirect URI',
             value=config.get_wcl_redirect_uri()
@@ -466,17 +451,14 @@ def create_connections_tab():
         def save_wcl_settings():
             client_id = ui_refs['wcl_client_id'].value.strip() if ui_refs['wcl_client_id'].value else ""
             client_secret = ui_refs['wcl_client_secret'].value.strip() if ui_refs['wcl_client_secret'].value else ""
-            user_token = ui_refs['wcl_user_token'].value.strip() if ui_refs['wcl_user_token'].value else ""
             redirect_uri = ui_refs['wcl_redirect_uri'].value.strip() if ui_refs['wcl_redirect_uri'].value else ""
 
             config.set_wcl_client_id(client_id)
             config.set_wcl_client_secret(client_secret)
-            config.set_wcl_user_token(user_token)
             config.set_wcl_redirect_uri(redirect_uri)
 
             mark_field_saved('wcl_client_id', client_id)
             mark_field_saved('wcl_client_secret', client_secret)
-            mark_field_saved('wcl_user_token', user_token)
             mark_field_saved('wcl_redirect_uri', redirect_uri)
 
             ui.notify('WCL settings saved!', type='positive')
@@ -487,8 +469,7 @@ def create_connections_tab():
                 'Check Credentials',
                 on_click=lambda: check_wcl_credentials(
                     ui_refs['wcl_client_id'],
-                    ui_refs['wcl_client_secret'],
-                    ui_refs['wcl_user_token']
+                    ui_refs['wcl_client_secret']
                 )
             )
             ui.button('Save', on_click=save_wcl_settings, icon='save')
