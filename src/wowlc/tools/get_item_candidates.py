@@ -906,7 +906,7 @@ METRIC_RULE_TEMPLATES = {
     "parses": "Give preference to raiders with better parse performance.",
     "ilvl_comparison": "Give preference to raiders with a larger ilvl difference.",
     "tier_token_counts": "Prioritise raiders who are closer to completing 2 or 4 set tier bonus.",
-    "last_item_received": "Give preference to raiders who received an item for this slot longest ago."
+    "last_item_received": "Give preference to raiders who received an item for this slot longest ago (or never received one)."
 }
 
 

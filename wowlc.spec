@@ -42,6 +42,7 @@ if sys.platform == 'win32':
 datas = [
     ('data', 'data'),            # TBC tokens JSON, etc.
     ('assets/med_logo.png', 'assets'),  # Splash screen image (loaded by Tkinter at runtime)
+    ('assets/logo.ico', 'assets'),      # Window icon (loaded by Qt at runtime)
 ]
 
 # Collect NiceGUI static assets (JavaScript, CSS, etc.)
