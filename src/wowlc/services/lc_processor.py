@@ -41,18 +41,20 @@ _SYSTEM_PROMPT_BASE = """You are an expert World of Warcraft loot council assist
 Use the guild policy rules as the basis for all decisions.
 
 IMPORTANT CONTEXT:
-- "Item Priority: Mainspec" means this item is for the player's primary raid role
-- "Item Priority: Offspec" means this item is for an alternate role the player sometimes plays"""
+- "Item Priority: Mainspec" means this item is for the player's primary raid role.
+- "Item Priority: Offspec" means this item is for an alternate role the player sometimes plays."""
 
-_WISHLIST_POSITION_CONTEXT = """- "Wishlist Position" indicates how much the player wants this item (lower = more desired)"""
+_WISHLIST_POSITION_CONTEXT = """- "Wishlist Position" indicates how much the player wants this item (lower = more desired)."""
 
-_ILVL_COMPARISON_CONTEXT = """- "Upgrade size" is measured in item level difference compared to currently equipped gear (higher = better upgrade)"""
+_ILVL_COMPARISON_CONTEXT = """- "Upgrade size" is measured in item level difference compared to currently equipped gear (higher = better upgrade)."""
 
 _SESSION_TRACKING_CONTEXT = """- "Items assigned this session" tracks how many items a player has received in the current loot council session. If the number is higher than others, consider distributing loot to other players to ensure fairness."""
 
 _CUSTOM_NOTE_CONTEXT = """- "Raider Note" contains notes about specific raiders relevant to loot decisions."""
 
 _GUILD_PRIORITY_NOTE_CONTEXT = """- "Guild Priority Note" contains overarching guidelines on how this item should be distributed."""
+
+_LAST_ITEM_RECEIVED_CONTEXT = """- "Last [Slot] received: Never" means the player has NEVER received an item in this slot — treat this as the longest possible wait, higher priority than any number of days."""
 
 _SYSTEM_PROMPT_FOOTER = """
 Be concise. Output only the requested format with a brief rationale."""
@@ -63,7 +65,8 @@ def get_system_prompt(
     has_custom_notes: bool = False,
     has_wishlist_position: bool = True,
     has_ilvl_comparison: bool = False,
-    has_guild_priority_note: bool = False
+    has_guild_priority_note: bool = False,
+    has_last_item_received: bool = False
 ) -> str:
     """Build the system prompt dynamically based on context.
 
@@ -73,6 +76,7 @@ def get_system_prompt(
         has_wishlist_position: Include wishlist position context (only if metric is enabled)
         has_ilvl_comparison: Include ilvl comparison context (only if metric is enabled)
         has_guild_priority_note: Include guild priority note context (only if item has a note)
+        has_last_item_received: Include last item received context (only if metric is enabled)
 
     Returns:
         Complete system prompt string
@@ -84,6 +88,9 @@ def get_system_prompt(
 
     if has_ilvl_comparison:
         parts.append(_ILVL_COMPARISON_CONTEXT)
+
+    if has_last_item_received:
+        parts.append(_LAST_ITEM_RECEIVED_CONTEXT)
 
     if include_session_tracking:
         parts.append(_SESSION_TRACKING_CONTEXT)
@@ -330,12 +337,14 @@ class LootCouncilProcessor:
         has_wishlist_position = prompt_result.get("has_wishlist_position", True)
         has_ilvl_comparison = prompt_result.get("has_ilvl_comparison", False)
         has_guild_priority_note = prompt_result.get("has_guild_priority_note", False)
+        has_last_item_received = prompt_result.get("has_last_item_received", False)
         system_prompt = get_system_prompt(
             include_session_tracking=not single_item_mode,
             has_custom_notes=has_custom_notes,
             has_wishlist_position=has_wishlist_position,
             has_ilvl_comparison=has_ilvl_comparison,
-            has_guild_priority_note=has_guild_priority_note
+            has_guild_priority_note=has_guild_priority_note,
+            has_last_item_received=has_last_item_received
         )
 
         # Build the full prompt for debug display

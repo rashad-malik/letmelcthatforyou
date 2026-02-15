@@ -906,7 +906,7 @@ METRIC_RULE_TEMPLATES = {
     "parses": "Give preference to raiders with better parse performance.",
     "ilvl_comparison": "Give preference to raiders with a larger ilvl difference.",
     "tier_token_counts": "Prioritise raiders who are closer to completing 2 or 4 set tier bonus.",
-    "last_item_received": "Give preference to raiders who received an item for this slot longest ago (or never received one)."
+    "last_item_received": "Give preference to raiders who received an item for this slot longest ago. \"Never\" means they have not received an item for this slot and should be treated as the longest wait."
 }
 
 
@@ -1267,6 +1267,7 @@ def get_item_candidates_prompt(
             "has_wishlist_position": show_wishlist_position,
             "has_ilvl_comparison": show_ilvl_upgrade,
             "has_guild_priority_note": bool(result.item_note and pd.notna(result.item_note)),
+            "has_last_item_received": show_last_item_received,
             "error": None
         }
 

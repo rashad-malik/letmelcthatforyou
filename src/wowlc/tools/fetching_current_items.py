@@ -40,11 +40,18 @@ _TOKEN_SLOT_MAP: Optional[dict[str, dict]] = None
 
 def _build_token_slot_mapping() -> dict[str, dict]:
     """
-    Build a mapping from tier token names to their slot and ilvl.
+    Build a mapping from special item names to their slot and ilvl.
+
+    Covers three categories of items from tokens.json:
+    - Tier tokens (e.g., "Helm of the Fallen Defender")
+    - Compatible items / tier set pieces (e.g., "Warbringer Greathelm")
+    - Exchange items (e.g., "Verdant Sphere")
 
     Returns:
-        Dictionary mapping token_name (lowercase) -> {"slot": slot, "ilvl": ilvl}
-        e.g., {"helm of the fallen defender": {"slot": "head", "ilvl": 120}}
+        Dictionary mapping item_name (lowercase) -> {"slot": slot, "ilvl": ilvl}
+        e.g., {"helm of the fallen defender": {"slot": "head", "ilvl": 120},
+               "warbringer greathelm": {"slot": "head", "ilvl": 120},
+               "verdant sphere": {"slot": "neck", "ilvl": 138}}
     """
     # Use the bundled tokens.json file
     tokens_file = Path(__file__).resolve().parent.parent.parent.parent / "data" / "tokens.json"
@@ -62,8 +69,7 @@ def _build_token_slot_mapping() -> dict[str, dict]:
 
     mapping = {}
 
-    # tokens.json structure: {"TBC": [{"tier_version": "...", "tokens": [...]}], "exchange_items_tbc": {...}}
-    # Only process tier token keys (lists), skip exchange_items_* keys (dicts)
+    # Process tier token expansion data (lists in tokens.json)
     for expansion_data in data.values():
         if not isinstance(expansion_data, list):
             continue
@@ -73,12 +79,31 @@ def _build_token_slot_mapping() -> dict[str, dict]:
                 slot = token.get("slot", "")
                 ilvl = token.get("ilvl", 0)
                 if token_name and slot:
+                    slot_lower = slot.lower()
                     mapping[token_name.lower()] = {
-                        "slot": slot.lower(),
+                        "slot": slot_lower,
                         "ilvl": ilvl
                     }
+                    # Also map compatible items (tier set pieces) to the same slot
+                    for compatible_item in token.get("compatible_items", []):
+                        if isinstance(compatible_item, str) and compatible_item:
+                            mapping[compatible_item.lower()] = {
+                                "slot": slot_lower,
+                                "ilvl": ilvl
+                            }
 
-    logger.debug(f"Built token slot mapping with {len(mapping)} tokens")
+    # Process exchange items (e.g., "Verdant Sphere" -> Neck)
+    exchange_items = data.get("exchange_items_tbc", {})
+    for source_name, item_data in exchange_items.items():
+        slot = item_data.get("slot", "")
+        ilvl = item_data.get("ilvl", 0)
+        if source_name and slot:
+            mapping[source_name.lower()] = {
+                "slot": slot.lower(),
+                "ilvl": ilvl
+            }
+
+    logger.debug(f"Built token slot mapping with {len(mapping)} entries")
     return mapping
 
 
@@ -970,7 +995,9 @@ def find_last_received_for_slot(
 
     Uses SLOT_GROUPS for weapon/ranged slot matching (e.g., "main_hand"
     matches one-hand, two-hand, etc.). Also recognizes tier tokens
-    (e.g., "Helm of the Fallen Defender") as items for their target slots.
+    (e.g., "Helm of the Fallen Defender"), compatible items / tier set
+    pieces (e.g., "Warbringer Greathelm"), and exchange items
+    (e.g., "Verdant Sphere") as items for their target slots.
 
     Args:
         char_row: Single-row DataFrame with character's received data
@@ -1025,25 +1052,25 @@ def find_last_received_for_slot(
             logger.debug(f"Skipping item with no item_id: {item_name or 'unknown'}")
             continue
 
-        # First, check if this item is a tier token
+        # First, check if this item is a tier token, compatible item, or exchange item
         token_slot_map = get_token_slot_map()
         token_info = token_slot_map.get(item_name.lower()) if item_name else None
 
         if token_info:
-            # This is a tier token - use the token's slot and ilvl
+            # Known item from tokens.json - use the predefined slot and ilvl
             token_slot = token_info["slot"]
             token_ilvl = token_info["ilvl"]
-            logger.debug(f"Item '{item_name}' is a tier token for slot '{token_slot}' (ilvl {token_ilvl})")
+            logger.debug(f"Item '{item_name}' found in token slot map for slot '{token_slot}' (ilvl {token_ilvl})")
             if token_slot in slots_to_match_lower:
-                logger.debug(f"Matched tier token: {item_name} (slot: {token_slot}, ilvl: {token_ilvl}) received on {received_at}")
+                logger.debug(f"Matched special item: {item_name} (slot: {token_slot}, ilvl: {token_ilvl}) received on {received_at}")
                 matching_items.append({
                     "item_name": item_name,
                     "ilvl": token_ilvl,
                     "received_at": received_at
                 })
-            continue  # Skip Nexus lookup for tokens
+            continue  # Skip Nexus lookup for known items
 
-        # Not a tier token - use Nexus lookup
+        # Not in token slot map - use Nexus lookup
         item_data = nexus_manager.get_item(item_id)
         if not item_data:
             logger.debug(f"Skipping item not found in Nexus: {item_id}")
