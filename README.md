@@ -98,6 +98,25 @@ This opens a NiceGUI interface for configuration and running loot council.
 
 ---
 
+## How to Update
+
+### Executable Users
+
+1. Download the latest release from the [Releases page](https://github.com/rashad-malik/letmelcthatforyou/releases/latest)
+2. Replace your existing `.exe` or `.AppImage` file with the new one
+3. Launch the new version — your settings and data are stored separately and will be preserved
+
+### Source Users
+
+```bash
+cd letmelcthatforyou
+git pull
+uv sync
+uv run python -m wowlc
+```
+
+---
+
 ## Quick Start
 
 ### Prerequisites

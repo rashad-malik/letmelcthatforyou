@@ -8,6 +8,7 @@ from .tabs.settings import create_settings_tab, create_server_settings_dialog
 from .tabs.run_lc import create_run_lc_tab
 from .tabs.dev import create_dev_dialog
 from .components.help_dialog import create_help_dialog
+from .components.version_badge import create_version_badge
 from .shared import config, notify_game_version_change, clear_game_version_callbacks, clear_pyrewood_mode_callbacks
 
 
@@ -67,6 +68,9 @@ def main_page():
 
                     help_dialog = create_help_dialog()
                     ui.button(icon='help', on_click=help_dialog.open).props('flat round').tooltip('Help & tutorial')
+
+                # Version badge
+                create_version_badge()
 
                 # Welcome message
                 ui.label('WoW Classic Loot Council Assistant').classes('text-lg mb-4')
