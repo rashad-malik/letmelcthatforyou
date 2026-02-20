@@ -660,7 +660,8 @@ def create_run_lc_tab(connection_refs: dict, game_version_toggle):
                 ui_refs['single_item'] = ui.select(
                     label='Item',
                     options=[],
-                    value=None
+                    value=None,
+                    with_input=True
                 ).classes('w-full')
                 ui_refs['single_item'].disable()
 
