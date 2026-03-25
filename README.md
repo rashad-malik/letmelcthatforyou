@@ -13,6 +13,8 @@
 
 > **🚧 Beta Notice:** This app is currently in beta. If you encounter any bugs or issues, please report them through [GitHub Issues](https://github.com/rashad-malik/letmelcthatforyou/issues) or on the [Discord](https://discord.gg/RGmymTJCnR). Your feedback helps improve the app!
 
+> **🔒 LiteLLM Security Notice (25 March 2026):** On 24 March 2026, two versions of LiteLLM (a library this app uses to connect to AI providers) were found to contain malicious code due to a supply chain attack. **Only versions 1.82.7 and 1.82.8 were affected** — this project uses **version 1.81.7, which is safe and was not compromised.** No action is needed on your part. As an extra precaution, I am actively working on replacing LiteLLM with an alternative. You can read more about the incident [here (The Hacker News)](https://thehackernews.com/2026/03/teampcp-backdoors-litellm-versions.html).
+
 ## What is this?
 
 **Let Me LC That For You** helps guild loot councils make fair, consistent loot distribution decisions using AI. It pulls data from ThatsMyBIS and WarcraftLogs, analyses each candidate based on your guild's loot policy, and provides intelligent recommendations with clear reasoning.
