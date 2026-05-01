@@ -20,6 +20,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+ANY_LLM_IMPORT_ERROR: Optional[str] = None
 try:
     import any_llm
     from any_llm import completion
@@ -33,8 +34,10 @@ try:
     )
     from genai_prices import Usage, calc_price
     HAS_ANY_LLM = True
-except ImportError:
+except ImportError as exc:
     HAS_ANY_LLM = False
+    ANY_LLM_IMPORT_ERROR = repr(exc)
+    logger.exception("Failed to import any-llm / genai-prices stack")
 
 
 # Substrings (lowercase) of model IDs known to reject system messages. Add
@@ -199,9 +202,10 @@ class LootCouncilProcessor:
             base_url: Base URL for local providers (ignored for hosted)
         """
         if not HAS_ANY_LLM:
+            detail = f" Underlying error: {ANY_LLM_IMPORT_ERROR}" if ANY_LLM_IMPORT_ERROR else ""
             raise ImportError(
-                "any-llm package not installed. "
-                "Install with: pip install any-llm-sdk"
+                "any-llm package failed to import. "
+                "Install with: pip install any-llm-sdk" + detail
             )
 
         self.provider = provider.lower()

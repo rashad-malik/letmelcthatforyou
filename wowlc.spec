@@ -13,7 +13,7 @@ Output:
     dist/letmelcthatforyou (Linux)
 """
 
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 import sys
 import os
 import glob
@@ -57,6 +57,13 @@ datas += collect_data_files('certifi')
 
 # Collect any-llm data files (gateway templates, py.typed markers, etc.)
 datas += collect_data_files('any_llm')
+
+# Bundle dist-info metadata for packages that call importlib.metadata.version()
+# at import time. genai_prices does this unconditionally and crashes the
+# any-llm import chain when metadata is missing — surfaced to users as a
+# misleading "any-llm package not installed" toast.
+datas += copy_metadata('genai-prices')
+datas += copy_metadata('any-llm-sdk')
 
 # ============================================================================
 # Hidden Imports

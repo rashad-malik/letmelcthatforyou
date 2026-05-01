@@ -12,6 +12,7 @@ from ...lc_processor import (
     LootDecision,
     TokenUsage,
     HAS_ANY_LLM,
+    ANY_LLM_IMPORT_ERROR,
 )
 from ...llm_providers import get_display_name, PROVIDERS
 from wowlc.tools.get_item_candidates import get_zone_items
@@ -284,8 +285,9 @@ async def run_lc_processing(
 
     try:
         if not HAS_ANY_LLM:
+            detail = f"\nUnderlying error: {ANY_LLM_IMPORT_ERROR}" if ANY_LLM_IMPORT_ERROR else ''
             ui.notify(
-                'any-llm package not installed. Run: pip install any-llm-sdk',
+                'any-llm package failed to import. Run: pip install any-llm-sdk' + detail,
                 type='negative',
                 multi_line=True
             )
@@ -412,8 +414,9 @@ async def run_single_item_processing(
 
     try:
         if not HAS_ANY_LLM:
+            detail = f"\nUnderlying error: {ANY_LLM_IMPORT_ERROR}" if ANY_LLM_IMPORT_ERROR else ''
             ui.notify(
-                'any-llm package not installed. Run: pip install any-llm-sdk',
+                'any-llm package failed to import. Run: pip install any-llm-sdk' + detail,
                 type='negative',
                 multi_line=True
             )
