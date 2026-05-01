@@ -289,6 +289,7 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
     TBC_ZONE_OPTIONS = {
         1047: "Karazhan",
         1048: "Gruul/Mag",
+        1056: "SSC/TK",
     }
 
     # Legacy TBC zone IDs (original TBC Classic) - used when Pyrewood dev mode is enabled

@@ -21,6 +21,8 @@ from .connections import check_connections_configured
 TBC_RAID_ZONES = [
     "Gruul's Lair",
     "Magtheridon's Lair",
+    "Serpentshrine Cavern",
+    "Tempest Keep",
 ]
 
 # Legacy TBC raid zones (original TBC Classic) - used when Pyrewood dev mode is enabled
