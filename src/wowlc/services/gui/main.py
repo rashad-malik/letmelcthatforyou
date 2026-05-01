@@ -1,8 +1,9 @@
 """
 Main page layout and entry point for the GUI configuration interface.
 """
-from nicegui import ui
+from nicegui import ui, app
 import os
+import sys
 from .tabs.connections import create_connections_tab
 from .tabs.settings import create_settings_tab, create_server_settings_dialog
 from .tabs.run_lc import create_run_lc_tab
@@ -10,6 +11,20 @@ from .tabs.dev import create_dev_dialog
 from .components.help_dialog import create_help_dialog
 from .components.version_badge import create_version_badge
 from .shared import config, notify_game_version_change, clear_game_version_callbacks, clear_pyrewood_mode_callbacks
+
+
+def _resolve_logo_path() -> str | None:
+    if getattr(sys, 'frozen', False):
+        candidate = os.path.join(sys._MEIPASS, 'assets', 'logo.png')
+    else:
+        candidate = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'assets', 'logo.png')
+    return candidate if os.path.exists(candidate) else None
+
+
+_LOGO_PATH = _resolve_logo_path()
+_LOGO_URL = '/static/logo.png'
+if _LOGO_PATH:
+    app.add_static_file(local_file=_LOGO_PATH, url_path=_LOGO_URL)
 
 
 @ui.page('/')
@@ -21,31 +36,43 @@ def main_page():
     with ui.column().classes('w-full items-center p-4'):
         # Header section
         with ui.card().classes('mb-4 w-full max-w-4xl'):
-            with ui.column().classes('w-full items-center p-6'):
-                # Title with icon and dark mode toggle
-                with ui.row().classes('items-center gap-3 mb-2 w-full'):
-                    ui.icon('gavel', size='xl')
-                    ui.label('Let Me LC That For You').classes('text-3xl font-bold')
+            with ui.column().classes('w-full p-6'):
+                # Clear callbacks on page load to avoid duplicates
+                clear_game_version_callbacks()
+                clear_pyrewood_mode_callbacks()
+
+                with ui.row().classes('items-center gap-4 w-full mb-4 flex-nowrap'):
+                    # Left: logo + title block (title, subtitle, version badge)
+                    if _LOGO_PATH:
+                        ui.image(_LOGO_URL).classes('w-14 h-14 shrink-0').props('fit=contain no-spinner')
+                    else:
+                        ui.icon('gavel', size='xl')
+
+                    with ui.column().classes('gap-0 items-start shrink-0'):
+                        ui.label('Let Me LC That For You').classes(
+                            'text-3xl font-bold leading-tight whitespace-nowrap'
+                        )
+                        ui.label('WoW Classic Loot Council Assistant').classes(
+                            'text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap'
+                        )
+                        create_version_badge()
+
                     ui.space()
 
-                    # Game version toggle
+                    # Right: game version toggle, then action buttons
                     initial_version = config.get_wcl_client_version()
                     if initial_version not in ['Era (WIP)', 'TBC Anniversary']:
                         initial_version = 'Era (WIP)'
                     game_version_toggle = ui.toggle(
                         ['Era (WIP)', 'TBC Anniversary'],
                         value=initial_version
-                    ).props('dense')
+                    ).props('dense no-caps').classes('mr-2 shrink-0')
 
                     def on_version_change():
                         config.set_wcl_client_version(game_version_toggle.value)
                         notify_game_version_change()
 
                     game_version_toggle.on_value_change(on_version_change)
-
-                    # Clear callbacks on page load to avoid duplicates
-                    clear_game_version_callbacks()
-                    clear_pyrewood_mode_callbacks()
 
                     # Server settings dialog button
                     server_dialog, server_refs, open_server_dialog = create_server_settings_dialog(game_version_toggle)
@@ -68,12 +95,6 @@ def main_page():
 
                     help_dialog = create_help_dialog()
                     ui.button(icon='help', on_click=help_dialog.open).props('flat round').tooltip('Help & tutorial')
-
-                # Version badge
-                create_version_badge()
-
-                # Welcome message
-                ui.label('WoW Classic Loot Council Assistant').classes('text-lg mb-4')
 
                 # Navigation explanation
                 with ui.card().classes('w-full p-4 rounded-lg'):
