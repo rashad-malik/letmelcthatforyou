@@ -133,6 +133,7 @@ def main_page():
                     'blizzard_client_secret': all_ui_refs['blizzard_client_secret'],
                     'lc_provider': all_ui_refs['lc_provider'],
                     'lc_api_key': all_ui_refs['lc_api_key'],
+                    'lc_base_url': all_ui_refs['lc_base_url'],
                     'lc_model': all_ui_refs['lc_model'],
                     'lc_delay': all_ui_refs['lc_delay'],
                 }

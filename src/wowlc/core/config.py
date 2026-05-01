@@ -104,9 +104,19 @@ class ConfigManager:
                 "groq": "",
                 "xai": "",
                 "cohere": "",
-                "together_ai": "",
-                "deepseek": ""
+                "together": "",
+                "deepseek": "",
+                "openrouter": "",
+                "perplexity": "",
+                "fireworks": "",
+                "cerebras": "",
+                "sambanova": "",
+                "moonshot": "",
+                "nebius": "",
+                "huggingface": "",
+                "zai": ""
             },
+            "base_urls": {},
             "delay_seconds": 2.0
         },
         "ui": {
@@ -163,10 +173,30 @@ class ConfigManager:
         try:
             with open(self._config_path, 'r', encoding='utf-8') as f:
                 loaded = json.load(f)
+                self._migrate_legacy(loaded)
                 # Merge with defaults to ensure all keys exist
                 return self._merge_with_defaults(loaded)
         except (json.JSONDecodeError, IOError):
             return self._deep_copy(self.DEFAULTS)
+
+    def _migrate_legacy(self, loaded: dict) -> None:
+        """In-place migration of legacy config shape to current.
+
+        Mutates `loaded`. Currently handles: renaming the LiteLLM-era
+        `together_ai` provider key to any-llm's `together`.
+        """
+        llm = loaded.get("llm")
+        if not isinstance(llm, dict):
+            return
+
+        # Rename API key bucket
+        api_keys = llm.get("api_keys")
+        if isinstance(api_keys, dict) and "together_ai" in api_keys:
+            api_keys.setdefault("together", api_keys.pop("together_ai"))
+
+        # Rename active_provider if it points at the old name
+        if llm.get("active_provider") == "together_ai":
+            llm["active_provider"] = "together"
 
     def _deep_copy(self, d: dict) -> dict:
         """Create a deep copy of a dictionary."""
@@ -684,6 +714,23 @@ class ConfigManager:
         if "api_keys" not in self._config["llm"]:
             self._config["llm"]["api_keys"] = {}
         self._config["llm"]["api_keys"][provider] = api_key
+        self._save_config()
+
+    def get_llm_base_url(self, provider: str = None) -> str:
+        """Get base URL for a local provider (or active provider if not specified)."""
+        if provider is None:
+            provider = self.get_llm_provider()
+        return self._config.get("llm", {}).get("base_urls", {}).get(provider, "")
+
+    def set_llm_base_url(self, base_url: str, provider: str = None) -> None:
+        """Set base URL for a local provider (or active provider if not specified)."""
+        if provider is None:
+            provider = self.get_llm_provider()
+        if "llm" not in self._config:
+            self._config["llm"] = self._deep_copy(self.DEFAULTS["llm"])
+        if "base_urls" not in self._config["llm"]:
+            self._config["llm"]["base_urls"] = {}
+        self._config["llm"]["base_urls"][provider] = base_url
         self._save_config()
 
     def get_llm_delay_seconds(self) -> float:

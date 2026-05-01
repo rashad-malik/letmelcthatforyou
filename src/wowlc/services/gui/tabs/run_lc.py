@@ -11,9 +11,9 @@ from ...lc_processor import (
     LootCouncilProcessor,
     LootDecision,
     TokenUsage,
-    HAS_LITELLM,
+    HAS_ANY_LLM,
 )
-from ...llm_providers import get_display_name
+from ...llm_providers import get_display_name, PROVIDERS
 from wowlc.tools.get_item_candidates import get_zone_items
 from .connections import check_connections_configured
 
@@ -223,6 +223,7 @@ async def run_lc_processing(
     results_container,
     provider_ref,
     api_key_ref,
+    base_url_ref,
     model_ref,
     zone_select,
     delay_ref,
@@ -245,6 +246,7 @@ async def run_lc_processing(
     # Get values from references (these come from Connections tab)
     provider = provider_ref.value if hasattr(provider_ref, 'value') else provider_ref
     api_key = api_key_ref.value.strip() if hasattr(api_key_ref, 'value') and api_key_ref.value else ""
+    base_url = base_url_ref.value.strip() if hasattr(base_url_ref, 'value') and base_url_ref.value else ""
     model = model_ref.value if hasattr(model_ref, 'value') else model_ref
     delay = float(delay_ref.value) if hasattr(delay_ref, 'value') and delay_ref.value else 2.0
     show_debug = debug_toggle.value if hasattr(debug_toggle, 'value') else False
@@ -254,8 +256,12 @@ async def run_lc_processing(
         ui.notify('Please select an LLM provider in Core Connections tab', type='negative')
         return
 
-    if not api_key:
+    kind = PROVIDERS.get(provider, {}).get('kind', 'hosted')
+    if kind == 'hosted' and not api_key:
         ui.notify(f'Please enter your API key for {provider} in Core Connections tab', type='negative')
+        return
+    if kind == 'local' and not base_url:
+        ui.notify(f'Please enter the base URL for {provider} in Core Connections tab', type='negative')
         return
 
     selected_zones = zone_select.value
@@ -275,9 +281,9 @@ async def run_lc_processing(
     results_container.clear()
 
     try:
-        if not HAS_LITELLM:
+        if not HAS_ANY_LLM:
             ui.notify(
-                'litellm package not installed. Run: pip install litellm',
+                'any-llm package not installed. Run: pip install any-llm-sdk',
                 type='negative',
                 multi_line=True
             )
@@ -287,7 +293,8 @@ async def run_lc_processing(
             api_key=api_key,
             provider=provider,
             model=model,
-            delay_seconds=delay
+            delay_seconds=delay,
+            base_url=base_url,
         )
 
         # Collect items from all selected zones
@@ -351,6 +358,7 @@ async def run_single_item_processing(
     results_container,
     provider_ref,
     api_key_ref,
+    base_url_ref,
     model_ref,
     item_select,
     debug_toggle,
@@ -369,6 +377,7 @@ async def run_single_item_processing(
     # Get values from references
     provider = provider_ref.value if hasattr(provider_ref, 'value') else provider_ref
     api_key = api_key_ref.value.strip() if hasattr(api_key_ref, 'value') and api_key_ref.value else ""
+    base_url = base_url_ref.value.strip() if hasattr(base_url_ref, 'value') and base_url_ref.value else ""
     model = model_ref.value if hasattr(model_ref, 'value') else model_ref
     show_debug = debug_toggle.value if hasattr(debug_toggle, 'value') else False
 
@@ -377,8 +386,12 @@ async def run_single_item_processing(
         ui.notify('Please select an LLM provider in Core Connections tab', type='negative')
         return
 
-    if not api_key:
+    kind = PROVIDERS.get(provider, {}).get('kind', 'hosted')
+    if kind == 'hosted' and not api_key:
         ui.notify(f'Please enter your API key for {provider} in Core Connections tab', type='negative')
+        return
+    if kind == 'local' and not base_url:
+        ui.notify(f'Please enter the base URL for {provider} in Core Connections tab', type='negative')
         return
 
     selected_item = item_select.value
@@ -396,9 +409,9 @@ async def run_single_item_processing(
     ui_refs['_copy_output_text'] = ''
 
     try:
-        if not HAS_LITELLM:
+        if not HAS_ANY_LLM:
             ui.notify(
-                'litellm package not installed. Run: pip install litellm',
+                'any-llm package not installed. Run: pip install any-llm-sdk',
                 type='negative',
                 multi_line=True
             )
@@ -408,7 +421,8 @@ async def run_single_item_processing(
             api_key=api_key,
             provider=provider,
             model=model,
-            delay_seconds=0  # No delay needed for single item
+            delay_seconds=0,  # No delay needed for single item
+            base_url=base_url,
         )
 
         status_label.text = f'Processing: {selected_item}'
@@ -514,6 +528,7 @@ def create_run_lc_tab(connection_refs: dict, game_version_toggle):
     # Extract LLM refs for processing
     lc_provider_ref = connection_refs['lc_provider']
     lc_api_key_ref = connection_refs['lc_api_key']
+    lc_base_url_ref = connection_refs['lc_base_url']
     lc_model_ref = connection_refs['lc_model']
     lc_delay_ref = connection_refs['lc_delay']
 
@@ -694,6 +709,7 @@ def create_run_lc_tab(connection_refs: dict, game_version_toggle):
                     ui_refs['single_results_container'],
                     lc_provider_ref,
                     lc_api_key_ref,
+                    lc_base_url_ref,
                     lc_model_ref,
                     ui_refs['single_item'],
                     ui_refs['single_debug_toggle'],
@@ -777,6 +793,7 @@ def create_run_lc_tab(connection_refs: dict, game_version_toggle):
                     ui_refs['lc_results_container'],
                     lc_provider_ref,
                     lc_api_key_ref,
+                    lc_base_url_ref,
                     lc_model_ref,
                     ui_refs['lc_zone'],
                     lc_delay_ref,

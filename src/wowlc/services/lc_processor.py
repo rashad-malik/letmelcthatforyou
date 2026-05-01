@@ -5,7 +5,8 @@ This module handles the orchestration of loot council decisions via LLM APIs.
 It processes items one at a time to stay within API rate limits while preserving
 full LLM decision-making capability.
 
-Supports multiple providers via LiteLLM: Anthropic, OpenAI, Google, Mistral, Groq, etc.
+Supports multiple providers via any-llm: hosted (Anthropic, OpenAI, Google, etc.)
+and local runtimes (Ollama, LM Studio, etc.).
 """
 
 import logging
@@ -20,17 +21,43 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 try:
-    import litellm
-    from litellm import completion
-    HAS_LITELLM = True
+    import any_llm
+    from any_llm import completion
+    from any_llm.exceptions import (
+        AnyLLMError,
+        AuthenticationError,
+        InvalidRequestError,
+        MissingApiKeyError,
+        ProviderError,
+        RateLimitError,
+    )
+    from genai_prices import Usage, calc_price
+    HAS_ANY_LLM = True
 except ImportError:
-    HAS_LITELLM = False
+    HAS_ANY_LLM = False
+
+
+# Substrings (lowercase) of model IDs known to reject system messages. Add
+# entries here when a new family surfaces. The runtime fallback in
+# process_item also catches unknown models on first failure, so this list is
+# an optimisation (skip the failed first attempt) rather than a requirement.
+_FOLD_SYSTEM_MODEL_HINTS: tuple[str, ...] = ("gemma",)
+
+# Matches provider error messages that indicate the model rejected the
+# system message. Liberal on purpose — false positives just trigger a single
+# fold-retry which still produces a valid call.
+_SYSTEM_REJECTION_PATTERNS = re.compile(
+    r"system[_ ]?instruction|developer[_ ]?instruction|"
+    r"does not support system|system message.*not (allowed|supported)",
+    re.IGNORECASE,
+)
 
 from ..core.paths import get_path_manager
 from ..tools.get_item_candidates import (
     get_item_candidates_prompt,
     get_zone_items,
 )
+from .llm_providers import PROVIDERS, get_model_context_window
 
 # Get PathManager instance
 paths = get_path_manager()
@@ -146,34 +173,8 @@ class LootCouncilProcessor:
     - Tracking session allocations to avoid funneling
     - Saving results to CSV
 
-    Supports multiple providers via LiteLLM.
+    Supports multiple providers via any-llm.
     """
-
-    # Map provider names to their environment variable for API keys
-    API_KEY_ENV_MAP = {
-        "anthropic": "ANTHROPIC_API_KEY",
-        "openai": "OPENAI_API_KEY",
-        "gemini": "GEMINI_API_KEY",
-        "mistral": "MISTRAL_API_KEY",
-        "groq": "GROQ_API_KEY",
-        "xai": "XAI_API_KEY",
-        "cohere": "COHERE_API_KEY",
-        "together_ai": "TOGETHER_API_KEY",
-        "deepseek": "DEEPSEEK_API_KEY",
-    }
-
-    # Map provider names to their LiteLLM model prefix
-    PROVIDER_PREFIX_MAP = {
-        "anthropic": "anthropic/",
-        "openai": "",  # OpenAI is default, no prefix needed
-        "gemini": "gemini/",
-        "mistral": "mistral/",
-        "groq": "groq/",
-        "xai": "xai/",
-        "cohere": "cohere/",
-        "together_ai": "together_ai/",
-        "deepseek": "deepseek/",
-    }
 
     # Retry configuration for transient errors
     MAX_RETRIES = 3
@@ -181,40 +182,50 @@ class LootCouncilProcessor:
 
     def __init__(
         self,
-        api_key: str,
+        api_key: str = "",
         provider: str = "anthropic",
         model: str = "claude-sonnet-4-20250514",
-        delay_seconds: float = 2.0
+        delay_seconds: float = 2.0,
+        base_url: str = ""
     ):
         """
         Initialize the processor.
 
         Args:
-            api_key: API key for the selected provider
-            provider: LLM provider (anthropic, openai, google, mistral, groq)
+            api_key: API key for hosted providers (ignored for local)
+            provider: any-llm provider key (e.g. "anthropic", "openai", "ollama")
             model: Model to use (default: claude-sonnet-4-20250514)
             delay_seconds: Delay between API calls (default: 2.0 for rate limiting)
+            base_url: Base URL for local providers (ignored for hosted)
         """
-        if not HAS_LITELLM:
+        if not HAS_ANY_LLM:
             raise ImportError(
-                "litellm package not installed. "
-                "Install with: pip install litellm"
+                "any-llm package not installed. "
+                "Install with: pip install any-llm-sdk"
             )
 
         self.provider = provider.lower()
         self.model = model
         self.delay_seconds = delay_seconds
+        self.api_key = api_key
+        self.base_url = base_url
+
+        info = PROVIDERS.get(self.provider, {})
+        self.kind = info.get("kind", "hosted")
+        self.any_llm_provider = info.get("any_llm_provider", self.provider)
+        env_var = info.get("env_var", "")
 
         # Session allocation tracking: {player_name: suggestion_1_count}
         self.session_allocations: Dict[str, int] = {}
 
-        # Configure API key for the selected provider
-        self._configure_api_key(api_key)
+        # Models discovered at runtime to reject the system message. Adds to
+        # the static _FOLD_SYSTEM_MODEL_HINTS hints for this session only.
+        self._fold_system_for: set = set()
 
-    def _configure_api_key(self, api_key: str) -> None:
-        """Set the API key as an environment variable for LiteLLM."""
-        env_var = self.API_KEY_ENV_MAP.get(self.provider)
-        if env_var:
+        # For hosted providers, also export the conventional env var so any
+        # code path inside any-llm or its provider SDKs that falls back to
+        # the env var still works. Harmless duplication.
+        if self.kind == "hosted" and env_var and api_key:
             os.environ[env_var] = api_key
 
     def reset_session_allocations(self) -> None:
@@ -242,58 +253,58 @@ class LootCouncilProcessor:
             if name in candidate_names and count > 0
         }
 
-    def _get_litellm_model_string(self) -> str:
+    def _should_fold_system(self) -> bool:
+        """True when the current model is known to reject system messages."""
+        model_lc = self.model.lower()
+        if self.model in self._fold_system_for:
+            return True
+        return any(hint in model_lc for hint in _FOLD_SYSTEM_MODEL_HINTS)
+
+    def _build_messages(self, system_prompt: str, user_prompt: str) -> List[Dict[str, str]]:
+        """Build the chat-completion messages list, folding the system prompt
+        into the user message for models that reject `system` role inputs."""
+        if self._should_fold_system():
+            return [{"role": "user", "content": f"{system_prompt}\n\n{user_prompt}"}]
+        return [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+
+    def _extract_token_usage(self, response) -> TokenUsage:
         """
-        Get the LiteLLM-formatted model string with provider prefix.
-
-        LiteLLM uses prefixes for non-OpenAI providers:
-        - anthropic/claude-3-opus-20240229
-        - gemini/gemini-1.5-pro
-        - mistral/mistral-large-latest
-
-        Note: Some providers (like Gemini) return models that already include
-        the prefix in litellm.models_by_provider, so we check first to avoid
-        duplicating the prefix.
-        """
-        prefix = self.PROVIDER_PREFIX_MAP.get(self.provider, "")
-        # Don't add prefix if model already starts with it
-        if prefix and self.model.startswith(prefix):
-            return self.model
-        return f"{prefix}{self.model}"
-
-    def _extract_token_usage(self, response, model_string: str) -> TokenUsage:
-        """
-        Extract token usage information from a LiteLLM response.
-
-        Args:
-            response: LiteLLM completion response object
-            model_string: The model string used for the request
+        Extract token usage information from an any-llm completion response.
 
         Returns:
             TokenUsage object with available information
         """
-        token_usage = TokenUsage(model_name=model_string)
+        token_usage = TokenUsage(model_name=self.model)
 
         try:
-            # Extract usage from response
+            # Extract usage from response (OpenAI-shaped ChatCompletion)
             if hasattr(response, 'usage') and response.usage:
                 token_usage.prompt_tokens = getattr(response.usage, 'prompt_tokens', None)
                 token_usage.completion_tokens = getattr(response.usage, 'completion_tokens', None)
                 token_usage.total_tokens = getattr(response.usage, 'total_tokens', None)
 
-            # Get max tokens for the model
-            try:
-                token_usage.max_tokens = litellm.get_max_tokens(model_string)
-            except Exception:
-                # Some models may not have max_tokens defined
-                pass
+            # Get max tokens for the model from the bundled catalogue
+            token_usage.max_tokens = get_model_context_window(self.provider, self.model)
 
-            # Calculate estimated cost
-            try:
-                token_usage.estimated_cost = litellm.completion_cost(response)
-            except Exception:
-                # Cost calculation may fail for some providers
-                pass
+            # Calculate estimated cost via genai-prices (hosted providers only;
+            # local runtimes have no public pricing).
+            if self.kind == "hosted":
+                try:
+                    price = calc_price(
+                        Usage(
+                            input_tokens=token_usage.prompt_tokens or 0,
+                            output_tokens=token_usage.completion_tokens or 0,
+                        ),
+                        model_ref=self.model,
+                        provider_id=self.any_llm_provider,
+                    )
+                    token_usage.estimated_cost = float(price.total_price)
+                except Exception:
+                    # genai-prices may not have entries for every model
+                    pass
 
         except Exception as e:
             logger.debug(f"Failed to extract token usage: {e}")
@@ -351,26 +362,51 @@ class LootCouncilProcessor:
         user_prompt = prompt_result["prompt"]
         full_prompt = f"[SYSTEM]\n{system_prompt}\n\n[USER]\n{user_prompt}"
 
-        # Call API via LiteLLM with retry logic for transient errors
+        # Call API via any-llm with retry logic for transient errors
         response_text = None
         try:
-            model_string = self._get_litellm_model_string()
+            completion_kwargs = {
+                "model": self.model,
+                "provider": self.any_llm_provider,
+                "messages": self._build_messages(system_prompt, user_prompt),
+                "max_tokens": 500,
+            }
+            if self.kind == "hosted":
+                if self.api_key:
+                    completion_kwargs["api_key"] = self.api_key
+            else:  # local
+                completion_kwargs["api_base"] = (
+                    self.base_url or PROVIDERS.get(self.provider, {}).get("base_url_default", "")
+                )
 
-            # Retry loop for transient errors (503, rate limits, connection issues)
+            # Retry loop for transient errors (rate limits, provider/server issues)
             last_error = None
             for attempt in range(self.MAX_RETRIES + 1):
                 try:
-                    response = completion(
-                        model=model_string,
-                        messages=[
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_prompt}
-                        ],
-                        max_tokens=500
-                    )
+                    response = completion(**completion_kwargs)
                     break  # Success, exit retry loop
-                except (litellm.InternalServerError, litellm.RateLimitError,
-                        litellm.APIConnectionError) as e:
+                except InvalidRequestError as e:
+                    # If the provider rejected the request because the model
+                    # doesn't accept system messages, fold the system prompt
+                    # into the user turn and retry once immediately. The model
+                    # is remembered for the rest of this session so subsequent
+                    # calls skip straight to the folded shape.
+                    if (
+                        self.model not in self._fold_system_for
+                        and _SYSTEM_REJECTION_PATTERNS.search(str(e))
+                    ):
+                        logger.info(
+                            f"Model '{self.model}' rejected system message; "
+                            f"folding into user turn and retrying. ({e})"
+                        )
+                        self._fold_system_for.add(self.model)
+                        completion_kwargs["messages"] = self._build_messages(
+                            system_prompt, user_prompt
+                        )
+                        response = completion(**completion_kwargs)
+                        break
+                    raise
+                except (RateLimitError, ProviderError) as e:
                     last_error = e
                     if attempt < self.MAX_RETRIES:
                         delay = self.RETRY_DELAY * (2 ** attempt)
@@ -386,7 +422,7 @@ class LootCouncilProcessor:
             response_text = response.choices[0].message.content
 
             # Extract token usage information
-            token_usage = self._extract_token_usage(response, model_string)
+            token_usage = self._extract_token_usage(response)
 
             # Parse response
             decision = self._parse_response(
@@ -404,7 +440,7 @@ class LootCouncilProcessor:
 
             return decision
 
-        except litellm.RateLimitError as e:
+        except RateLimitError as e:
             return LootDecision(
                 item_name=item_name,
                 item_slot=prompt_result.get("item_slot"),
@@ -418,7 +454,7 @@ class LootCouncilProcessor:
                 debug_response=response_text,
                 token_usage=None
             )
-        except litellm.AuthenticationError as e:
+        except (AuthenticationError, MissingApiKeyError) as e:
             return LootDecision(
                 item_name=item_name,
                 item_slot=prompt_result.get("item_slot"),
@@ -432,7 +468,7 @@ class LootCouncilProcessor:
                 debug_response=response_text,
                 token_usage=None
             )
-        except litellm.APIConnectionError as e:
+        except ProviderError as e:
             return LootDecision(
                 item_name=item_name,
                 item_slot=prompt_result.get("item_slot"),
@@ -441,7 +477,7 @@ class LootCouncilProcessor:
                 suggestion_3="",
                 rationale="",
                 success=False,
-                error=f"Connection error to {self.provider}: {str(e)}",
+                error=f"Connection or server error to {self.provider}: {str(e)}",
                 debug_prompt=full_prompt,
                 debug_response=response_text,
                 token_usage=None

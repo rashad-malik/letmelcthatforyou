@@ -13,8 +13,6 @@
 
 > **🚧 Beta Notice:** This app is currently in beta. If you encounter any bugs or issues, please report them through [GitHub Issues](https://github.com/rashad-malik/letmelcthatforyou/issues) or on the [Discord](https://discord.gg/RGmymTJCnR). Your feedback helps improve the app!
 
-> **🔒 LiteLLM Security Notice (25 March 2026):** On 24 March 2026, two versions of LiteLLM (a library this app uses to connect to AI providers) were found to contain malicious code due to a supply chain attack. **Only versions 1.82.7 and 1.82.8 were affected** — this project uses **version 1.81.7, which is safe and was not compromised.** No action is needed on your part. As an extra precaution, I am actively working on replacing LiteLLM with an alternative. You can read more about the incident [here (The Hacker News)](https://thehackernews.com/2026/03/teampcp-backdoors-litellm-versions.html).
-
 ## What is this?
 
 **Let Me LC That For You** helps guild loot councils make fair, consistent loot distribution decisions using AI. It pulls data from ThatsMyBIS and WarcraftLogs, analyses each candidate based on your guild's loot policy, and provides intelligent recommendations with clear reasoning.
@@ -24,7 +22,7 @@
 ## Features
 
 - **AI-Powered Recommendations** - Uses LLMs to analyse candidates and explain loot decisions
-- **9 LLM Providers** - Anthropic Claude, OpenAI GPT, Google Gemini, Mistral AI, Groq Fast Inference, xAI Grok, Cohere, Together AI, DeepSeek
+- **23 LLM Providers** - 18 hosted services (Anthropic, OpenAI, Google, Mistral, Groq, xAI, Cohere, Together AI, DeepSeek, OpenRouter, Perplexity, Fireworks, Cerebras, SambaNova, Moonshot, Nebius, HuggingFace, z\.ai) plus 5 local runtimes (Ollama, LM Studio, llama.cpp, llamafile, vLLM) for self-hosted models
 - **ThatsMyBIS Integration** - Wishlist priorities, loot history, attendance records, guild item notes, raider notes
 - **WarcraftLogs Integration** - Parse performance, character gear
 - **Blizzard API Integration** - Real-time character equipment data
@@ -131,7 +129,7 @@ You'll need:
 3. **Blizzard API credentials** - [Create an API client here](https://develop.battle.net/access/clients) with the following redirect URLs:
    - `https://community.developer.battle.net`
    - `http://localhost`
-4. **LLM API key** - From any supported provider (Anthropic, OpenAI, etc.)
+4. **LLM access** - Either an API key from a supported hosted provider (Anthropic, OpenAI, etc.) or a local model server (Ollama, LM Studio, etc.) running on your machine
 
 ### First-Time Setup
 
@@ -163,7 +161,7 @@ You'll need:
 - **ThatsMyBIS** - Guild ID and Discord authentication
 - **WarcraftLogs** - API credentials for pulling log data
 - **Blizzard API** - For real-time character equipment (armoury)
-- **LLM Provider** - Select AI provider and model, enter API key
+- **LLM Provider** - Select an AI provider and model. Hosted providers take an API key; local runtimes (Ollama, LM Studio, etc.) take a base URL pointing at your local server
 
 ### Settings Tab
 - **Candidate Rules** - Configure who can receive loot: allow alts, give priority to mains, enable tank priority, and include raider notes (public or officer)
@@ -203,6 +201,10 @@ Toggle metrics on/off in Settings to customise what the AI considers.
 
 ## Supported LLM Providers
 
+The app talks to LLMs through [any-llm](https://github.com/mozilla-ai/any-llm), with cost estimates from [genai-prices](https://github.com/pydantic/genai-prices). 23 providers are supported: 18 hosted services and 5 local runtimes.
+
+### Hosted (single API key)
+
 | Provider | Example Models |
 |----------|----------------|
 | **Anthropic** | Claude Sonnet 4.5, Claude Opus 4.5 |
@@ -212,8 +214,31 @@ Toggle metrics on/off in Settings to customise what the AI considers.
 | **Groq** | Llama 3, Mixtral |
 | **xAI** | Grok |
 | **Cohere** | Command R+ |
-| **Together AI** | Various open source models |
+| **Together AI** | Various open-source models |
 | **DeepSeek** | DeepSeek Chat |
+| **OpenRouter** | Aggregator — one key, hundreds of models from many providers |
+| **Perplexity** | Sonar |
+| **Fireworks AI** | Hosted open-source inference |
+| **Cerebras** | Fast inference for Llama, Qwen, and other open-source models |
+| **SambaNova** | Hosted open-source inference |
+| **Moonshot (Kimi)** | Kimi K2 |
+| **Nebius AI Studio** | Hosted open-source inference |
+| **HuggingFace Inference** | Models hosted on HuggingFace Inference |
+| **z\.ai (GLM)** | GLM models |
+
+### Local runtimes (base URL, no API key)
+
+For local providers, enter a Base URL pointing at your running server instead of an API key. Models are listed live from your local install when you click **Test Connection**.
+
+| Runtime | Default Base URL |
+|---------|------------------|
+| **Ollama** | `http://localhost:11434` |
+| **LM Studio** | `http://localhost:1234/v1` |
+| **llama.cpp server** | `http://localhost:8080` |
+| **llamafile** | `http://localhost:8080` |
+| **vLLM** | `http://localhost:8000/v1` |
+
+> **Note on cost estimates:** Cost figures shown next to each decision rely on per-model pricing data from `genai-prices`. Local models always show no cost (they run on your hardware), and a small number of newer hosted models may show no cost until pricing data catches up.
 
 ---
 
@@ -325,7 +350,8 @@ This project also wouldn't be possible without these tools and platforms:
 - **[WarcraftLogs](https://www.warcraftlogs.com/)** - The gold standard for WoW raid logging and performance analysis
 - **[Blizzard Entertainment](https://develop.battle.net/)** - For WoW Classic APIs
 - **[Nexus-Devs wow-classic-items](https://github.com/nexus-devs/wow-classic-items)** - Comprehensive WoW Classic item database
-- **[LiteLLM](https://github.com/BerriAI/litellm)** - Connects to AI providers and provides useful tools such as token counts and cost estimates
+- **[any-llm](https://github.com/mozilla-ai/any-llm)** by Mozilla.ai - Unified abstraction over many LLM provider SDKs
+- **[genai-prices](https://github.com/pydantic/genai-prices)** by the Pydantic team - Per-model pricing data for cost estimates
 - **[OpenRouter](https://openrouter.ai/)** - Model metadata API for human-readable model names
 - **[NiceGUI](https://nicegui.io/)** - Python-based browser GUI framework
 - **[Astral UV](https://github.com/astral-sh/uv)** - Python package management

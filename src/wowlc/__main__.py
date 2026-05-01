@@ -8,6 +8,11 @@ managing WoW loot council decisions via LLM APIs.
 import sys
 import os
 
+# Enable any-llm's unified exception handling. This converts provider-specific
+# exceptions (e.g. anthropic.RateLimitError) into any_llm.exceptions.* subclasses
+# so we can catch them by category. Must be set before any any-llm import.
+os.environ.setdefault("ANY_LLM_UNIFIED_EXCEPTIONS", "1")
+
 # PyInstaller with console=False sets sys.stdout/stderr to None on Windows.
 # Redirect to devnull to prevent crashes in libraries (e.g., uvicorn) that
 # call stream.isatty() without null-checking.
@@ -97,9 +102,8 @@ def setup_logging():
         ]
     )
 
-    # Suppress verbose LiteLLM logging (only show warnings and errors)
-    logging.getLogger("LiteLLM").setLevel(logging.WARNING)
-    logging.getLogger("litellm").setLevel(logging.WARNING)
+    # Suppress verbose any-llm logging (only show warnings and errors)
+    logging.getLogger("any_llm").setLevel(logging.WARNING)
 
     return log_file
 

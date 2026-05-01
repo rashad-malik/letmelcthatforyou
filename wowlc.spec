@@ -54,16 +54,8 @@ datas += collect_data_files('PySide6')
 # Collect SSL certificates for HTTPS requests (required for LLM API calls)
 datas += collect_data_files('certifi')
 
-# Collect LiteLLM data files (tokenizers, model configs, etc.)
-# LiteLLM uses importlib.resources to load these at runtime
-datas += collect_data_files('litellm')
-
-# Collect tiktoken data files (used by LiteLLM for token counting)
-try:
-    datas += collect_data_files('tiktoken')
-    datas += collect_data_files('tiktoken_ext')
-except Exception:
-    pass  # tiktoken may not be installed
+# Collect any-llm data files (gateway templates, py.typed markers, etc.)
+datas += collect_data_files('any_llm')
 
 # ============================================================================
 # Hidden Imports
@@ -116,17 +108,16 @@ hidden_imports = [
     'tabulate',
     'numpy',
 
-    # === LLM Providers (via LiteLLM) ===
-    'litellm',
-    'litellm.llms',
-    'litellm.litellm_core_utils',
-    'litellm.litellm_core_utils.tokenizers',
-    'litellm.litellm_core_utils.llm_cost_calc',
+    # === LLM Providers (via any-llm) ===
+    'any_llm',
+    'any_llm.exceptions',
+    'any_llm.constants',
+    'any_llm.providers',
+    'genai_prices',
+    'genai_prices.data',
+    # First-party SDKs commonly invoked by any-llm
     'anthropic',
     'openai',
-    'tiktoken',
-    'tiktoken_ext',
-    'tiktoken_ext.openai_public',
 
     # === Network/API ===
     'gql',
@@ -177,7 +168,8 @@ hidden_imports = [
 
 # Collect all submodules for complex packages
 hidden_imports += collect_submodules('nicegui')
-hidden_imports += collect_submodules('litellm')
+hidden_imports += collect_submodules('any_llm')
+hidden_imports += collect_submodules('genai_prices')
 hidden_imports += collect_submodules('gql')
 hidden_imports += collect_submodules('uvicorn')
 hidden_imports += collect_submodules('starlette')

@@ -215,36 +215,45 @@ def check_blizzard_credentials(blizzard_client_id, blizzard_client_secret):
         ui.notify('\n'.join(results), type='positive', multi_line=True)
 
 
-def check_llm_connection(lc_provider, lc_model, lc_api_key, show_notification=True):
+def check_llm_connection(lc_provider, lc_model, lc_api_key, lc_base_url, show_notification=True):
     """
-    Validate LLM API key by querying the provider's /models endpoint.
-    This is free and also updates the model list to show only valid models.
+    Validate the LLM connection by querying the provider's /models endpoint.
+
+    Hosted providers are validated with an API key; local providers with a base URL.
 
     Args:
         lc_provider: Provider select element
         lc_model: Model select element
-        lc_api_key: API key input element
+        lc_api_key: API key input element (used for hosted providers)
+        lc_base_url: Base URL input element (used for local providers)
         show_notification: Whether to show UI notifications (default True)
     """
     provider = lc_provider.value
-    api_key = lc_api_key.value.strip() if lc_api_key.value else ""
-
-    if not api_key:
-        if show_notification:
-            ui.notify('API Key is required', type='negative')
-        return
-
     provider_info = PROVIDERS.get(provider, {})
     provider_name = provider_info.get('name', provider)
+    kind = provider_info.get('kind', 'hosted')
+
+    api_key = lc_api_key.value.strip() if lc_api_key.value else ""
+    base_url = lc_base_url.value.strip() if lc_base_url.value else ""
+
+    if kind == 'hosted':
+        if not api_key:
+            if show_notification:
+                ui.notify('API Key is required', type='negative')
+            return
+        validate_kwargs = {'api_key': api_key}
+    else:  # local
+        if not base_url:
+            if show_notification:
+                ui.notify('Base URL is required', type='negative')
+            return
+        validate_kwargs = {'base_url': base_url}
 
     try:
-        # Get validated models - this queries the provider's /models endpoint
-        validated_models = get_validated_models(provider, api_key)
+        validated_models = get_validated_models(provider, **validate_kwargs)
 
         if validated_models:
-            # Update the model dropdown with only valid models
             lc_model.options = {m['value']: m['label'] for m in validated_models}
-            # Try to restore saved model, otherwise use first available
             saved_model = config.get_llm_model()
             if any(m['value'] == saved_model for m in validated_models):
                 lc_model.value = saved_model
@@ -255,12 +264,12 @@ def check_llm_connection(lc_provider, lc_model, lc_api_key, show_notification=Tr
             lc_model.update()
 
             if show_notification:
+                noun = 'API key' if kind == 'hosted' else 'connection'
                 ui.notify(
-                    f'{provider_name} API key is valid. Found {len(validated_models)} available models.',
+                    f'{provider_name} {noun} is valid. Found {len(validated_models)} available models.',
                     type='positive'
                 )
         else:
-            # Disable model dropdown on failure
             lc_model.options = {}
             lc_model.value = None
             lc_model.props('label=Model (test connection first)')
@@ -268,12 +277,12 @@ def check_llm_connection(lc_provider, lc_model, lc_api_key, show_notification=Tr
             lc_model.update()
 
             if show_notification:
+                detail = 'API key appears invalid' if kind == 'hosted' else 'cannot reach base URL'
                 ui.notify(
-                    f'{provider_name} API key appears invalid or no models available',
+                    f'{provider_name}: {detail} or no models available',
                     type='negative'
                 )
     except Exception as e:
-        # Disable model dropdown on error
         lc_model.options = {}
         lc_model.value = None
         lc_model.props('label=Model (test connection first)')
@@ -284,15 +293,21 @@ def check_llm_connection(lc_provider, lc_model, lc_api_key, show_notification=Tr
             ui.notify(f'Connection test failed: {str(e)}', type='negative')
 
 
-def init_llm_model_dropdown(lc_provider, lc_model, lc_api_key):
+def init_llm_model_dropdown(lc_provider, lc_model, lc_api_key, lc_base_url):
     """
-    Initialize LLM model dropdown on startup if API key is saved.
-    Validates the saved key silently and populates models if valid.
+    Initialize LLM model dropdown on startup if credentials are saved.
+    Validates silently and populates models if valid.
     """
-    api_key = lc_api_key.value.strip() if lc_api_key.value else ""
-    if api_key:
-        # Silently validate and populate models without showing notifications
-        check_llm_connection(lc_provider, lc_model, lc_api_key, show_notification=False)
+    provider = lc_provider.value
+    kind = PROVIDERS.get(provider, {}).get('kind', 'hosted')
+
+    if kind == 'hosted':
+        creds = lc_api_key.value.strip() if lc_api_key.value else ""
+    else:
+        creds = lc_base_url.value.strip() if lc_base_url.value else ""
+
+    if creds:
+        check_llm_connection(lc_provider, lc_model, lc_api_key, lc_base_url, show_notification=False)
 
 
 def create_connections_tab():
@@ -570,6 +585,10 @@ def create_connections_tab():
             lambda e: check_field_changed('lc_provider', e.value or "")
         )
 
+        initial_kind = PROVIDERS.get(initial_provider, {}).get('kind', 'hosted')
+        initial_base_url_default = PROVIDERS.get(initial_provider, {}).get('base_url_default', '')
+        initial_base_url = config.get_llm_base_url(initial_provider) or initial_base_url_default
+
         ui_refs['lc_api_key'] = ui.input(
             label='API Key',
             password=True,
@@ -577,6 +596,7 @@ def create_connections_tab():
             placeholder=get_provider_key_placeholder(initial_provider),
             value=config.get_llm_api_key(initial_provider)
         ).classes('w-full')
+        ui_refs['lc_api_key'].visible = (initial_kind == 'hosted')
         lc_api_key_unsaved = ui.label('Unsaved changes!').classes('text-red-500 text-xs')
         lc_api_key_unsaved.visible = False
 
@@ -584,6 +604,20 @@ def create_connections_tab():
         register_field_for_tracking('lc_api_key', initial_api_key, lc_api_key_unsaved)
         ui_refs['lc_api_key'].on_value_change(
             lambda e: check_field_changed('lc_api_key', e.value or "")
+        )
+
+        ui_refs['lc_base_url'] = ui.input(
+            label='Base URL',
+            placeholder=initial_base_url_default,
+            value=initial_base_url
+        ).classes('w-full')
+        ui_refs['lc_base_url'].visible = (initial_kind == 'local')
+        lc_base_url_unsaved = ui.label('Unsaved changes!').classes('text-red-500 text-xs')
+        lc_base_url_unsaved.visible = False
+
+        register_field_for_tracking('lc_base_url', initial_base_url, lc_base_url_unsaved)
+        ui_refs['lc_base_url'].on_value_change(
+            lambda e: check_field_changed('lc_base_url', e.value or "")
         )
 
         # Model selector - starts disabled until connection is tested
@@ -604,13 +638,27 @@ def create_connections_tab():
 
         def on_provider_change(e):
             new_provider = e.sender.value
+            new_info = PROVIDERS.get(new_provider, {})
+            new_kind = new_info.get('kind', 'hosted')
+            new_base_url_default = new_info.get('base_url_default', '')
+
             # Reset model dropdown when provider changes
             ui_refs['lc_model'].options = {}
             ui_refs['lc_model'].value = None
             ui_refs['lc_model'].props('label=Model (test connection first)')
             ui_refs['lc_model'].disable()
-            ui_refs['lc_api_key'].props('placeholder=' + get_provider_key_placeholder(new_provider))
-            ui_refs['lc_api_key'].value = config.get_llm_api_key(new_provider)
+
+            # Toggle between API key and base URL inputs
+            ui_refs['lc_api_key'].visible = (new_kind == 'hosted')
+            ui_refs['lc_base_url'].visible = (new_kind == 'local')
+
+            if new_kind == 'hosted':
+                ui_refs['lc_api_key'].props('placeholder=' + get_provider_key_placeholder(new_provider))
+                ui_refs['lc_api_key'].value = config.get_llm_api_key(new_provider)
+            else:
+                ui_refs['lc_base_url'].props('placeholder=' + new_base_url_default)
+                ui_refs['lc_base_url'].value = config.get_llm_base_url(new_provider) or new_base_url_default
+
             config.set_llm_provider(new_provider)
             check_field_changed('lc_provider', new_provider or "")
 
@@ -641,18 +689,26 @@ def create_connections_tab():
 
         def save_llm_settings():
             provider = ui_refs['lc_provider'].value
+            kind = PROVIDERS.get(provider, {}).get('kind', 'hosted')
             api_key = ui_refs['lc_api_key'].value
+            base_url = ui_refs['lc_base_url'].value
             model = ui_refs['lc_model'].value
             delay = ui_refs['lc_delay'].value
             if not model:
                 ui.notify('Please test connection and select a model first', type='warning')
                 return
-            config.set_llm_api_key(api_key, provider)
+
+            if kind == 'hosted':
+                config.set_llm_api_key(api_key, provider)
+            else:
+                config.set_llm_base_url(base_url, provider)
+
             config.set_llm_model(model)
             config.set_llm_delay_seconds(float(delay) if delay else 2.0)
 
             mark_field_saved('lc_provider', provider or "")
             mark_field_saved('lc_api_key', api_key or "")
+            mark_field_saved('lc_base_url', base_url or "")
             mark_field_saved('lc_model', model or "")
             mark_field_saved('lc_delay', str(delay) if delay else "2.0")
 
@@ -665,17 +721,19 @@ def create_connections_tab():
                 on_click=lambda: check_llm_connection(
                     ui_refs['lc_provider'],
                     ui_refs['lc_model'],
-                    ui_refs['lc_api_key']
+                    ui_refs['lc_api_key'],
+                    ui_refs['lc_base_url']
                 ),
                 icon='wifi'
             )
             ui.button('Save', on_click=save_llm_settings, icon='save')
 
-        # Initialize model dropdown on startup if API key is saved
+        # Initialize model dropdown on startup if credentials are saved
         ui.timer(0.5, lambda: init_llm_model_dropdown(
             ui_refs['lc_provider'],
             ui_refs['lc_model'],
-            ui_refs['lc_api_key']
+            ui_refs['lc_api_key'],
+            ui_refs['lc_base_url']
         ), once=True)
 
     return ui_refs
@@ -724,10 +782,16 @@ def check_connections_configured(ui_refs: dict) -> tuple[bool, list[str]]:
     lc_provider = ui_refs.get('lc_provider')
     if not lc_provider or not lc_provider.value:
         missing.append("LLM Provider")
-
-    lc_api_key = ui_refs.get('lc_api_key')
-    if not lc_api_key or not (lc_api_key.value and lc_api_key.value.strip()):
-        missing.append("LLM API Key")
+    else:
+        kind = PROVIDERS.get(lc_provider.value, {}).get('kind', 'hosted')
+        if kind == 'hosted':
+            lc_api_key = ui_refs.get('lc_api_key')
+            if not lc_api_key or not (lc_api_key.value and lc_api_key.value.strip()):
+                missing.append("LLM API Key")
+        else:
+            lc_base_url = ui_refs.get('lc_base_url')
+            if not lc_base_url or not (lc_base_url.value and lc_base_url.value.strip()):
+                missing.append("LLM Base URL")
 
     lc_model = ui_refs.get('lc_model')
     if not lc_model or not lc_model.value:
