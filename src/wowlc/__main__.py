@@ -55,6 +55,12 @@ def _show_splash():
             return None
 
         splash = tk.Tk()
+        ico_path = os.path.join(base, 'assets', 'logo.ico')
+        if os.path.exists(ico_path):
+            try:
+                splash.iconbitmap(ico_path)
+            except Exception:
+                pass
         splash.overrideredirect(True)
         splash.attributes('-topmost', True)
         # Drop topmost after a brief moment so it doesn't cover other apps
@@ -82,6 +88,8 @@ def _show_splash():
 
 def setup_logging():
     """Configure logging to file for debugging."""
+    from datetime import datetime
+
     try:
         # Use PathManager for consistent log directory across platforms
         from wowlc.core.paths import get_path_manager
@@ -93,11 +101,23 @@ def setup_logging():
         import tempfile
         log_file = Path(tempfile.gettempdir()) / "letmelcthatforyou_launcher.log"
 
+    # Belt-and-braces: write a session marker via plain file IO before logging is
+    # configured, so we can tell "setup_logging never ran" from "ran but emitted nothing".
+    try:
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(f"\n=== Session @ {datetime.now().isoformat(timespec='seconds')} ===\n")
+    except Exception:
+        pass
+
+    # force=True replaces any pre-existing root handler installed by an earlier
+    # import (otherwise basicConfig is a silent no-op and our FileHandler is
+    # constructed — truncating the file — but never attached).
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s - %(levelname)s - %(message)s',
+        force=True,
         handlers=[
-            logging.FileHandler(log_file, mode='w', encoding='utf-8'),
+            logging.FileHandler(log_file, mode='a', encoding='utf-8', delay=False),
             logging.StreamHandler(sys.stderr)
         ]
     )
@@ -110,6 +130,17 @@ def setup_logging():
 
 def main():
     """Main entry point - launches the GUI."""
+    # Must be set before ANY window is created (Tk splash, Qt window) so the
+    # Windows taskbar associates the process with our icon, not Python's.
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+                'com.letmelcthatforyou.app'
+            )
+        except Exception:
+            pass
+
     splash = _show_splash()
     log_file = None
     try:
@@ -149,6 +180,11 @@ def main():
         except:
             pass
         raise
+    finally:
+        # Ensure all handlers are flushed and closed before the process exits,
+        # since the NiceGUI server runs in a daemon thread that gets killed
+        # abruptly and may have in-flight log records.
+        logging.shutdown()
 
 
 if __name__ == "__main__":

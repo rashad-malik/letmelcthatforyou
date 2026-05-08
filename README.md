@@ -37,7 +37,8 @@
   - Tier token completion tracking
   - Custom raider notes
   - ... and more!
-- **Batch Processing** - Process entire raid zones item-by-item with progress tracking
+- **Crafting Recipe Support (TBC)** - Pattern, Plans, Design, and Schematic drops are LC'd alongside regular gear, with optional profession-aware candidate filtering so a "Pattern: Belt of Blasting" only goes to tailors
+- **Batch Processing** - Process entire raid zones item-by-item with progress tracking; high-priority items are LC'd first based on TMB item tier
 - **CSV Export** - Save all decisions for review and record-keeping
 
 <table>
@@ -192,6 +193,7 @@ The AI considers these metrics when making recommendations:
 | **Parses** | WarcraftLogs performance averages (best and median) |
 | **iLvl Upgrade** | How much the item improves their current gear |
 | **Tier Tokens** | Progress toward tier set completion |
+| **Professions** | Each character's TMB-listed professions |
 | **Raider Notes** | Custom notes you've added for each player |
 | **Tank Priority** | Optional priority for tanks |
 
@@ -266,7 +268,7 @@ AppData/Local/letmelcthatforyou/
 
 Planned features for upcoming releases:
 
-- **BoP Gear Recipes** - Support for bind-on-pickup crafted gear and player profession considerations
+- ~~**BoP Gear Recipes** - Support for bind-on-pickup crafted gear and player profession considerations~~ ✅ Shipped
 - **Extended Parse Options** - Additional parse filtering options (e.g., parses by average item level)
 - **Path Configuration** - User-configurable paths for application files and exports
 - **Custom Realm Lists** - User-defined realm lists for servers not included in the default selection
@@ -319,6 +321,7 @@ The more complete your TMB data, the better the recommendations. Here's what mat
 | **Mainspec vs offspec** flags on wishlist items | High | Ensures mainspec needs are prioritised correctly |
 | **Item tier class** (e.g. S, A, B) | Recommended | Raid zone LC processes higher-tier items first, leading to fairer overall distribution — TMB's default tiers work fine |
 | **Item notes / prio notes** | Recommended | Guild-level item priority notes are included in the AI prompt |
+| **Character professions** (TBC) | Recommended for recipes | Required to use the profession filter for crafting recipe drops (Patterns, Plans, Designs, Schematics) — without it, the app cannot tell who can actually use a recipe |
 | **Raider notes** (public/officer) | Optional | Shown to the AI if enabled in settings — useful for special considerations |
 
 ### Will I hit WarcraftLogs API rate limits?

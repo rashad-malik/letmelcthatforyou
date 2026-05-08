@@ -184,5 +184,9 @@ def run_gui(splash=None):
 
     # Launch Qt window (passes server_error so actual exceptions are surfaced)
     from wowlc.qt.window import run_qt_window
-    exit_code = run_qt_window(port=8080, server_error=server_error, splash=splash)
+    try:
+        exit_code = run_qt_window(port=8080, server_error=server_error, splash=splash)
+    finally:
+        # Flush log handlers before sys.exit kills the daemon NiceGUI thread.
+        logging.shutdown()
     sys.exit(exit_code)

@@ -301,10 +301,12 @@ async def run_lc_processing(
             base_url=base_url,
         )
 
-        # Collect items from all selected zones
+        # Collect items from all selected zones, ordered by TMB priority
+        # tier so high-priority items are LC'd first (session allocations
+        # accumulate, so processing order influences later decisions).
         items = []
         for zone_name in selected_zones:
-            zone_items = get_zone_items(zone_name)
+            zone_items = get_zone_items(zone_name, sort_by_tier=True)
             items.extend(zone_items)
 
         if not items:

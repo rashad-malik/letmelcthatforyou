@@ -64,6 +64,7 @@ CANDIDATE_RULE_DESCRIPTIONS = {
     "mains_over_alts": "When alts are allowed, main characters are prioritised over alts.",
     "tank_priority": "Tanks get priority for any mainspec items.",
     "raider_notes": "Notes from TMB about the raider.",
+    "professions": "Only characters with the correct profession can be considered for relevant recipes.",
 }
 
 
@@ -407,6 +408,20 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                         'public_note' if e.value == 'Public Note' else 'officer_note'
                     )
                 )
+
+            # Professions toggle
+            def on_professions_toggle(enabled: bool):
+                config.set_show_professions(enabled)
+                notify_metric_change()
+
+            with ui.row().classes('items-center gap-2 w-full'):
+                ui_refs['show_professions'] = ui.checkbox(
+                    value=config.get_show_professions(),
+                    on_change=lambda e: on_professions_toggle(e.value)
+                )
+                with ui.column().classes('flex-1 gap-0'):
+                    ui.label('Professions').classes('font-medium')
+                    ui.label(CANDIDATE_RULE_DESCRIPTIONS['professions']).classes('text-xs text-gray-500')
 
     # Guard flag to prevent checkbox handlers firing during mode switch sync
     _syncing_checkboxes = False

@@ -88,6 +88,7 @@ class ConfigManager:
             "tank_priority": False,
             "show_raider_notes": False,
             "raider_note_source": "public_note",
+            "show_professions": False,
             "show_last_item_received": False,
             "simple_mode_metrics": dict(_DEFAULT_MODE_METRICS),
             "custom_mode_metrics": dict(_DEFAULT_MODE_METRICS),
@@ -633,6 +634,17 @@ class ConfigManager:
         if "player_metrics" not in self._config:
             self._config["player_metrics"] = {}
         self._config["player_metrics"]["show_raider_notes"] = value
+        self._save_config()
+
+    def get_show_professions(self) -> bool:
+        """Get whether to include character professions in loot council prompts."""
+        return self._config.get("player_metrics", {}).get("show_professions", False)
+
+    def set_show_professions(self, value: bool) -> None:
+        """Set whether to include character professions in loot council prompts."""
+        if "player_metrics" not in self._config:
+            self._config["player_metrics"] = {}
+        self._config["player_metrics"]["show_professions"] = value
         self._save_config()
 
     def get_raider_note_source(self) -> str:
