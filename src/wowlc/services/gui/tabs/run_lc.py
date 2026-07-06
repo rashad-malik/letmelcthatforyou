@@ -33,6 +33,7 @@ TBC_RAID_ZONES = [
 
 ERA_RAID_ZONES = [
     "Molten Core",
+    "Onyxia's Lair",
     "Blackwing Lair",
     "Temple of Ahn'Qiraj",
     "Naxxramas",

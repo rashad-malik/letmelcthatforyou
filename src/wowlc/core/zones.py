@@ -32,8 +32,8 @@ def _load_zone_data() -> dict:
 def canonical_version_key(game_version: str) -> str:
     """Normalise any game-version label to a canonical key.
 
-    Accepts the header toggle labels ('Era (WIP)', 'TBC Anniversary'), the
-    legacy stored default ('Fresh'), and lowercase variants.
+    Accepts the header toggle labels ('Era', 'TBC Anniversary'), older stored
+    labels ('Era (WIP)', 'Fresh'), and lowercase variants.
     """
     v = (game_version or "").strip().lower()
     if v.startswith("era") or v == "fresh":

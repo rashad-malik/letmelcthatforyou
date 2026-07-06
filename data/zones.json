@@ -1,9 +1,10 @@
 {
   "Era": {
-    "1028": "Molten Core",
-    "1034": "Blackwing Lair",
-    "1035": "Temple of Ahn'Qiraj",
-    "1036": "Naxxramas"
+    "2000": "Molten Core",
+    "2001": "Onyxia's Lair",
+    "2002": "Blackwing Lair",
+    "2005": "Temple of Ahn'Qiraj",
+    "2006": "Naxxramas"
   },
   "TBC Anniversary": {
     "1047": "Karazhan",

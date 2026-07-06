@@ -17,6 +17,13 @@ import pandas as pd
 
 from ..core.paths import get_path_manager
 from ..core.config import get_config_manager
+from ..core.zones import (
+    VERSION_ERA,
+    VERSION_TBC,
+    VERSION_TBC_LEGACY,
+    current_version_key,
+    get_valid_zone_ids,
+)
 from ..services.tmb_manager import TMBDataManager
 from ..services.nexus_manager import NexusItemManager
 from ..services.parse_cache import get_cached_parse, cache_parse, is_raider_cached, ParseData
@@ -25,56 +32,73 @@ from .fetching_current_items import get_cached_raider_gear, find_last_received_f
 # Get PathManager instance
 paths = get_path_manager()
 
-# Module-level cache for tier token names
-_tier_token_names_cache: Optional[set] = None
+# tokens.json section names per canonical game version:
+# (tier token list, exchange items dict, recipes dict)
+_VERSION_SECTIONS: Dict[str, tuple] = {
+    VERSION_ERA: ("Era", "exchange_items_era", "recipes_era"),
+    VERSION_TBC: ("TBC", "exchange_items_tbc", "recipes_tbc"),
+    VERSION_TBC_LEGACY: ("TBC", "exchange_items_tbc", "recipes_tbc"),
+}
 
-# Module-level cache for exchange items (TBC)
-_exchange_items_tbc_cache: Optional[Dict[str, Dict]] = None
+# Module-level cache for the raw tokens.json data
+_tokens_data_cache: Optional[Dict] = None
 
-# Module-level cache for raid recipes (TBC)
-_recipes_tbc_cache: Optional[Dict[str, Dict]] = None
+# Derived caches keyed by canonical version key, so a mid-session game
+# version toggle picks up the right sections without invalidation
+_tier_token_names_cache: Dict[str, set] = {}
+_exchange_items_cache: Dict[str, Dict] = {}
+_recipes_cache: Dict[str, Dict] = {}
+
+
+def _load_tokens_data() -> Dict:
+    """Load and cache the raw tokens.json data."""
+    global _tokens_data_cache
+
+    if _tokens_data_cache is not None:
+        return _tokens_data_cache
+
+    _tokens_data_cache = {}
+    tokens_file = paths.get_tbc_tokens_path()
+
+    if not tokens_file or not tokens_file.exists():
+        return _tokens_data_cache
+
+    try:
+        with open(tokens_file, "r", encoding="utf-8") as f:
+            _tokens_data_cache = json.load(f)
+    except (json.JSONDecodeError, IOError):
+        pass
+
+    return _tokens_data_cache
+
+
+def _version_sections() -> tuple:
+    """Section names (tier list, exchange dict, recipes dict) for the current game version."""
+    return _VERSION_SECTIONS.get(current_version_key(), _VERSION_SECTIONS[VERSION_TBC])
 
 
 def get_tier_token_names() -> set:
     """
-    Get a set of all tier token names for efficient lookup.
-    Loads from tokens.json on first call and caches the result.
+    Get a set of all tier token names for the current game version.
+    Loads from tokens.json on first call and caches the result per version.
 
     Returns:
         Set of lowercase tier token names (e.g., "helm of the fallen defender")
     """
-    global _tier_token_names_cache
+    version = current_version_key()
+    if version in _tier_token_names_cache:
+        return _tier_token_names_cache[version]
 
-    if _tier_token_names_cache is not None:
-        return _tier_token_names_cache
+    names: set = set()
+    tier_section = _version_sections()[0]
+    for tier_group in _load_tokens_data().get(tier_section, []):
+        for token in tier_group.get("tokens", []):
+            token_name = token.get("token_name", "")
+            if token_name:
+                names.add(token_name.lower())
 
-    _tier_token_names_cache = set()
-    tokens_file = paths.get_tbc_tokens_path()
-
-    if not tokens_file or not tokens_file.exists():
-        return _tier_token_names_cache
-
-    try:
-        with open(tokens_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-
-        # Structure: {"TBC": [{"tier_version": "...", "tokens": [...]}], "exchange_items_tbc": {...}}
-        # Only process tier token keys (lists), skip exchange_items_* keys (dicts)
-        for expansion_key, tier_groups in data.items():
-            # Skip exchange items - they have a different structure
-            if expansion_key.startswith("exchange_items"):
-                continue
-            if not isinstance(tier_groups, list):
-                continue
-            for tier_group in tier_groups:
-                for token in tier_group.get("tokens", []):
-                    token_name = token.get("token_name", "")
-                    if token_name:
-                        _tier_token_names_cache.add(token_name.lower())
-    except (json.JSONDecodeError, IOError, KeyError):
-        pass
-
-    return _tier_token_names_cache
+    _tier_token_names_cache[version] = names
+    return names
 
 
 def is_tier_token(item_name: str) -> bool:
@@ -90,32 +114,17 @@ def is_tier_token(item_name: str) -> bool:
     return item_name.lower() in get_tier_token_names()
 
 
-def get_exchange_items_tbc() -> Dict[str, Dict]:
+def get_exchange_items() -> Dict[str, Dict]:
     """
-    Load exchange items mapping from tokens.json.
+    Load the exchange items mapping for the current game version from tokens.json.
 
     Returns:
         Dict of {source_name: {"ilvl": int, "items": [str, ...]}}
     """
-    global _exchange_items_tbc_cache
-
-    if _exchange_items_tbc_cache is not None:
-        return _exchange_items_tbc_cache
-
-    _exchange_items_tbc_cache = {}
-    tokens_file = paths.get_tbc_tokens_path()
-
-    if not tokens_file or not tokens_file.exists():
-        return _exchange_items_tbc_cache
-
-    try:
-        with open(tokens_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        _exchange_items_tbc_cache = data.get("exchange_items_tbc", {})
-    except (json.JSONDecodeError, IOError):
-        pass
-
-    return _exchange_items_tbc_cache
+    version = current_version_key()
+    if version not in _exchange_items_cache:
+        _exchange_items_cache[version] = _load_tokens_data().get(_version_sections()[1], {})
+    return _exchange_items_cache[version]
 
 
 def is_exchange_item(item_name: str) -> bool:
@@ -128,7 +137,7 @@ def is_exchange_item(item_name: str) -> bool:
     Returns:
         True if the item is an exchange source item, False otherwise
     """
-    return item_name.lower() in {k.lower() for k in get_exchange_items_tbc().keys()}
+    return item_name.lower() in {k.lower() for k in get_exchange_items().keys()}
 
 
 def find_exchange_item(item_name: str) -> Optional[Dict]:
@@ -141,10 +150,10 @@ def find_exchange_item(item_name: str) -> Optional[Dict]:
     Returns:
         Dict with source_name, ilvl, and items list, or None if not found
     """
-    exchange_items_tbc = get_exchange_items_tbc()
+    exchange_items = get_exchange_items()
     item_lower = item_name.lower()
 
-    for source_name, data in exchange_items_tbc.items():
+    for source_name, data in exchange_items.items():
         exchangeable_items = data.get("items", [])
         ilvl = data.get("ilvl")
 
@@ -160,45 +169,30 @@ def find_exchange_item(item_name: str) -> Optional[Dict]:
     return None
 
 
-def get_recipes_tbc() -> Dict[str, Dict]:
+def get_recipes() -> Dict[str, Dict]:
     """
-    Load TBC raid recipes mapping from tokens.json.
+    Load the raid recipes mapping for the current game version from tokens.json.
 
     Returns:
         Dict of {recipe_name: {"profession": str, "items": [str, ...]}}
     """
-    global _recipes_tbc_cache
-
-    if _recipes_tbc_cache is not None:
-        return _recipes_tbc_cache
-
-    _recipes_tbc_cache = {}
-    tokens_file = paths.get_tbc_tokens_path()
-
-    if not tokens_file or not tokens_file.exists():
-        return _recipes_tbc_cache
-
-    try:
-        with open(tokens_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        _recipes_tbc_cache = data.get("recipes_tbc", {})
-    except (json.JSONDecodeError, IOError):
-        pass
-
-    return _recipes_tbc_cache
+    version = current_version_key()
+    if version not in _recipes_cache:
+        _recipes_cache[version] = _load_tokens_data().get(_version_sections()[2], {})
+    return _recipes_cache[version]
 
 
 def is_recipe(item_name: str) -> bool:
     """
-    Check if item is a TBC raid recipe (matches by recipe name only).
+    Check if item is a raid recipe (matches by recipe name only).
 
     Args:
         item_name: Name of the item to check
 
     Returns:
-        True if the item is a recipe in tokens.json's recipes_tbc, False otherwise
+        True if the item is a recipe in the current version's recipes section
     """
-    return item_name.lower() in {k.lower() for k in get_recipes_tbc().keys()}
+    return item_name.lower() in {k.lower() for k in get_recipes().keys()}
 
 
 def find_recipe(item_name: str) -> Optional[Dict]:
@@ -213,21 +207,27 @@ def find_recipe(item_name: str) -> Optional[Dict]:
         item_name: Recipe name or crafted item name
 
     Returns:
-        Dict with recipe_name, profession, and items list, or None if not found
+        Dict with recipe_name, profession, items list, and optional item_id
+        (Nexus fallback for name mismatches), or None if not found
     """
-    recipes = get_recipes_tbc()
+    recipes = get_recipes()
     item_lower = item_name.lower()
 
     for recipe_name, data in recipes.items():
         crafted_items = data.get("items", [])
-        profession = data.get("profession")
+        result = {
+            "recipe_name": recipe_name,
+            "profession": data.get("profession"),
+            "items": crafted_items,
+            "item_id": data.get("item_id"),
+        }
 
         if recipe_name.lower() == item_lower:
-            return {"recipe_name": recipe_name, "profession": profession, "items": crafted_items}
+            return result
 
         for crafted in crafted_items:
             if crafted.lower() == item_lower:
-                return {"recipe_name": recipe_name, "profession": profession, "items": crafted_items}
+                return result
 
     return None
 
@@ -256,36 +256,24 @@ def find_tier_token_with_version(item_name: str) -> Optional[tuple]:
         Tuple of (token_dict, tier_version) if found, None otherwise
         e.g., ({"token_name": "Helm...", ...}, "Tier 5")
     """
-    tokens_file = paths.get_tbc_tokens_path()
-
-    if not tokens_file or not tokens_file.exists():
-        return None
-
-    with open(tokens_file, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
     item_lower = item_name.lower()
 
-    # Handle structure: {"TBC": [{"tier_version": "...", "tokens": [...]}]}
-    # Skip exchange_items keys - they have a different structure
-    for expansion_key, tier_groups in data.items():
-        if expansion_key.startswith("exchange_items"):
-            continue
-        if not isinstance(tier_groups, list):
-            continue
-        for tier_group in tier_groups:
-            tier_version = tier_group.get("tier_version")
-            for token in tier_group.get("tokens", []):
-                # Check if it matches the token name
-                if token.get("token_name", "").lower() == item_lower:
-                    return (token, tier_version)
+    # Tier section for the current game version:
+    # [{"tier_version": "...", "tokens": [...]}]
+    tier_section = _version_sections()[0]
+    for tier_group in _load_tokens_data().get(tier_section, []):
+        tier_version = tier_group.get("tier_version")
+        for token in tier_group.get("tokens", []):
+            # Check if it matches the token name
+            if token.get("token_name", "").lower() == item_lower:
+                return (token, tier_version)
 
-                # Check if it matches any of the compatible items
-                # compatible_items is a list of strings
-                for compatible_item in token.get("compatible_items", []):
-                    if isinstance(compatible_item, str):
-                        if compatible_item.lower() == item_lower:
-                            return (token, tier_version)
+            # Check if it matches any of the compatible items
+            # compatible_items is a list of strings
+            for compatible_item in token.get("compatible_items", []):
+                if isinstance(compatible_item, str):
+                    if compatible_item.lower() == item_lower:
+                        return (token, tier_version)
 
     return None
 
@@ -502,67 +490,58 @@ def generate_checking_candidates(item_name: str) -> CheckingCandidatesResult:
     # Get reference date
     reference_date = get_reference_date()
 
-    # Check if client version is TBC and if this is a tier token
+    # Classify the item; the loaders are scoped to the current game version,
+    # so token/exchange/recipe fan-out is version-correct for Era and TBC alike
     config = get_config_manager()
-    client_version = config.get_wcl_client_version().strip().lower()
     tier_token = None
     tier_bonuses_df = None
     tier_version = None
     item_ids_to_check = []
 
-    # Check for tier tokens first (TBC only)
+    # Check for tier tokens first
     exchange_item = None
     recipe = None
-    if client_version in ["tbc", "tbc anniversary"]:
-        result = find_tier_token_with_version(item_name)
-        if result:
-            tier_token, tier_version = result
+    result = find_tier_token_with_version(item_name)
+    if result:
+        tier_token, tier_version = result
 
-        if tier_token:
-            # Get tier bonuses for display
-            tier_bonuses_df = get_tier_set_bonuses(tier_token)
+    if tier_token:
+        # Get tier bonuses for display
+        tier_bonuses_df = get_tier_set_bonuses(tier_token)
 
-            # Build list of item IDs to check (token + all compatible items)
-            token_id = nexus.get_item_id(tier_token["token_name"])
-            if token_id:
-                item_ids_to_check.append(token_id)
+        # Build list of item IDs to check (token + all compatible items)
+        item_ids_to_check.extend(nexus.get_item_ids(tier_token["token_name"]))
 
-            for compatible_item in tier_token.get("compatible_items", []):
-                # Handle both string and dict formats
-                if isinstance(compatible_item, str):
-                    item_name_to_check = compatible_item
-                else:
-                    item_name_to_check = compatible_item.get("item_name", "")
-                compatible_id = nexus.get_item_id(item_name_to_check)
-                if compatible_id:
-                    item_ids_to_check.append(compatible_id)
+        for compatible_item in tier_token.get("compatible_items", []):
+            # Handle both string and dict formats
+            if isinstance(compatible_item, str):
+                item_name_to_check = compatible_item
+            else:
+                item_name_to_check = compatible_item.get("item_name", "")
+            item_ids_to_check.extend(nexus.get_item_ids(item_name_to_check))
 
-        # Check for exchange items (non-tier items with sub-items)
-        if not tier_token:
-            exchange_item = find_exchange_item(item_name)
-            if exchange_item:
-                # Build list of item IDs to check (source + all exchangeable items)
-                source_id = nexus.get_item_id(exchange_item["source_name"])
-                if source_id:
-                    item_ids_to_check.append(source_id)
+    # Check for exchange items (non-tier items with sub-items)
+    if not tier_token:
+        exchange_item = find_exchange_item(item_name)
+        if exchange_item:
+            # Build list of item IDs to check (source + all exchangeable items)
+            item_ids_to_check.extend(nexus.get_item_ids(exchange_item["source_name"]))
 
-                for ex_item_name in exchange_item["items"]:
-                    ex_id = nexus.get_item_id(ex_item_name)
-                    if ex_id:
-                        item_ids_to_check.append(ex_id)
+            for ex_item_name in exchange_item["items"]:
+                item_ids_to_check.extend(nexus.get_item_ids(ex_item_name))
 
-        # Check for raid recipes (recipe + crafted item dual-match)
-        if not tier_token and not exchange_item:
-            recipe = find_recipe(item_name)
-            if recipe:
-                recipe_id = nexus.get_item_id(recipe["recipe_name"])
-                if recipe_id:
-                    item_ids_to_check.append(recipe_id)
+    # Check for raid recipes (recipe + crafted item dual-match)
+    if not tier_token and not exchange_item:
+        recipe = find_recipe(item_name)
+        if recipe:
+            recipe_ids = nexus.get_item_ids(recipe["recipe_name"])
+            if not recipe_ids and recipe.get("item_id"):
+                # Nexus names the recipe differently to TMB
+                recipe_ids = [recipe["item_id"]]
+            item_ids_to_check.extend(recipe_ids)
 
-                for crafted_name in recipe["items"]:
-                    crafted_id = nexus.get_item_id(crafted_name)
-                    if crafted_id:
-                        item_ids_to_check.append(crafted_id)
+            for crafted_name in recipe["items"]:
+                item_ids_to_check.extend(nexus.get_item_ids(crafted_name))
 
     # Look up item in Nexus (for non-tier tokens or fallback)
     item_id = nexus.get_item_id(item_name)
@@ -578,7 +557,7 @@ def generate_checking_candidates(item_name: str) -> CheckingCandidatesResult:
                 crafted_id = cid
                 break
         if item_id is None:
-            item_id = crafted_id
+            item_id = crafted_id or recipe.get("item_id")
 
     if item_id is None:
         raise ValueError(f"Item '{item_name}' not found in item database")
@@ -598,6 +577,11 @@ def generate_checking_candidates(item_name: str) -> CheckingCandidatesResult:
         # Take ilvl/slot from the crafted item, not the recipe pattern
         item_ilvl = nexus.get_item_level(crafted_id)
         item_slot = nexus.get_item_slot(crafted_id)
+    elif recipe:
+        # Recipe with no equippable craft (enchanting formulas, consumables):
+        # the pattern's own Nexus ilvl/slot are meaningless
+        item_ilvl = None
+        item_slot = None
     else:
         item_ilvl = nexus.get_item_level(item_id)
         item_slot = nexus.get_item_slot(item_id)
@@ -874,6 +858,16 @@ def get_equipped_ilvls_for_slot(
     if not cache_data or not nexus_slot:
         return None
 
+    # Compound slots (multi-slot tokens like "Shoulder/Feet"): gather all parts
+    slot_parts = [s.strip() for s in nexus_slot.split("/") if s.strip()]
+    if len(slot_parts) > 1:
+        ilvls = []
+        for slot_part in slot_parts:
+            part_ilvls = get_equipped_ilvls_for_slot(raider_name, slot_part, cache_data)
+            if part_ilvls:
+                ilvls.extend(part_ilvls)
+        return ilvls or None
+
     raiders = cache_data.get("raiders", {})
 
     # Find raider data (case-insensitive)
@@ -1032,7 +1026,7 @@ METRIC_RULE_TEMPLATES = {
     "wishlist_position": "Give preference to raiders who ranked this item higher on their wishlist (lower position = more desired).",
     "parses": "Give preference to raiders with better parse performance.",
     "ilvl_comparison": "Give preference to raiders with a larger ilvl difference.",
-    "tier_token_counts": "Prioritise raiders who are closer to completing 2 or 4 set tier bonus.",
+    "tier_token_counts": "Prioritise raiders who are closer to completing a tier set bonus threshold (e.g. 2, 4, 6 or 8 pieces depending on the set).",
     "last_item_received": "Give preference to raiders who received an item for this slot longest ago. \"Never\" means they have not received an item for this slot and should be treated as the longest wait."
 }
 
@@ -1181,6 +1175,10 @@ def get_item_candidates_prompt(
         show_parses = config.get_show_parses()
         parse_zone_id = config.get_parse_zone_id()
         parse_zone_label = config.get_parse_zone_label()
+        # A stored parse zone from another game version (or from before the
+        # Era zone IDs were corrected) would silently return empty parses
+        if parse_zone_id and parse_zone_id not in get_valid_zone_ids(current_version_key()):
+            parse_zone_id = None
         parse_filter_mode = config.get_parse_filter_mode()
         server_slug = config.get_wcl_server_slug()
         server_region = config.get_wcl_server_region()

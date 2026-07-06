@@ -61,10 +61,11 @@ def main_page():
 
                     # Right: game version toggle, then action buttons
                     initial_version = config.get_wcl_client_version()
-                    if initial_version not in ['Era (WIP)', 'TBC Anniversary']:
-                        initial_version = 'Era (WIP)'
+                    if initial_version not in ['Era', 'TBC Anniversary']:
+                        # Also migrates configs stored before the 'Era (WIP)' label was retired
+                        initial_version = 'Era'
                     game_version_toggle = ui.toggle(
-                        ['Era (WIP)', 'TBC Anniversary'],
+                        ['Era', 'TBC Anniversary'],
                         value=initial_version
                     ).props('dense no-caps').classes('mr-2 shrink-0')
 

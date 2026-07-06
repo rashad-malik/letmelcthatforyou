@@ -34,6 +34,16 @@ from ..services.blizz_manager import get_access_token, fetch_character_gear_name
 _TOKEN_SLOT_MAP: Optional[dict[str, dict]] = None
 
 
+def split_slots(slot: str) -> list[str]:
+    """
+    Split a possibly compound slot string into its parts.
+
+    Some tokens redeem into more than one slot (e.g. the Qiraji Bindings
+    cover "Shoulder/Feet"); single-slot strings pass through as one entry.
+    """
+    return [s.strip() for s in (slot or "").split("/") if s.strip()]
+
+
 def _build_token_slot_mapping() -> dict[str, dict]:
     """
     Build a mapping from special item names to their slot and ilvl.
@@ -80,7 +90,11 @@ def _build_token_slot_mapping() -> dict[str, dict]:
                         "slot": slot_lower,
                         "ilvl": ilvl
                     }
-                    # Also map compatible items (tier set pieces) to the same slot
+                    # Also map compatible items (tier set pieces) to the same
+                    # slot — except for multi-slot tokens, whose reward pieces
+                    # each have their own slot and resolve correctly via Nexus
+                    if len(split_slots(slot_lower)) > 1:
+                        continue
                     for compatible_item in token.get("compatible_items", []):
                         if isinstance(compatible_item, str) and compatible_item:
                             mapping[compatible_item.lower()] = {
@@ -89,15 +103,15 @@ def _build_token_slot_mapping() -> dict[str, dict]:
                             }
 
     # Process exchange items (e.g., "Verdant Sphere" -> Neck)
-    exchange_items = data.get("exchange_items_tbc", {})
-    for source_name, item_data in exchange_items.items():
-        slot = item_data.get("slot", "")
-        ilvl = item_data.get("ilvl", 0)
-        if source_name and slot:
-            mapping[source_name.lower()] = {
-                "slot": slot.lower(),
-                "ilvl": ilvl
-            }
+    for exchange_key in ("exchange_items_tbc", "exchange_items_era"):
+        for source_name, item_data in data.get(exchange_key, {}).items():
+            slot = item_data.get("slot", "")
+            ilvl = item_data.get("ilvl", 0)
+            if source_name and slot:
+                mapping[source_name.lower()] = {
+                    "slot": slot.lower(),
+                    "ilvl": ilvl
+                }
 
     logger.debug(f"Built token slot mapping with {len(mapping)} entries")
     return mapping
@@ -116,16 +130,16 @@ def get_token_slot_map() -> dict[str, dict]:
 _COMPATIBLE_ITEMS_MAP: Optional[dict[str, str]] = None
 
 
-def _build_compatible_items_mapping(expansion: str = "TBC") -> dict[str, str]:
+def _build_compatible_items_mapping() -> dict[str, str]:
     """
     Build a mapping from tier set item names (compatible items) to their tier version.
 
-    Args:
-        expansion: Expansion key in tokens.json (default "TBC")
+    Unions every tier-token section in tokens.json (Era and TBC) — set piece
+    names never collide across expansions, so a single map serves all versions.
 
     Returns:
         Dictionary mapping item_name (lowercase) -> tier_version
-        e.g., {"warbringer greathelm": "Tier 4", "destroyer chestguard": "Tier 5"}
+        e.g., {"warbringer greathelm": "Tier 4", "dreadnaught helmet": "Tier 3"}
     """
     tokens_file = Path(__file__).resolve().parent.parent.parent.parent / "data" / "tokens.json"
 
@@ -142,29 +156,26 @@ def _build_compatible_items_mapping(expansion: str = "TBC") -> dict[str, str]:
 
     mapping = {}
 
-    # Get expansion-specific data
-    expansion_data = data.get(expansion)
-    if not expansion_data:
-        logger.warning(f"Expansion '{expansion}' not found in tokens.json")
-        return {}
+    for expansion_data in data.values():
+        if not isinstance(expansion_data, list):
+            continue
+        for tier_group in expansion_data:
+            tier_version = tier_group.get("tier_version", "Unknown")
+            for token in tier_group.get("tokens", []):
+                for compatible_item in token.get("compatible_items", []):
+                    # Handle string format (item name)
+                    if isinstance(compatible_item, str):
+                        mapping[compatible_item.lower()] = tier_version
 
-    for tier_group in expansion_data:
-        tier_version = tier_group.get("tier_version", "Unknown")
-        for token in tier_group.get("tokens", []):
-            for compatible_item in token.get("compatible_items", []):
-                # Handle string format (item name)
-                if isinstance(compatible_item, str):
-                    mapping[compatible_item.lower()] = tier_version
-
-    logger.debug(f"Built compatible items mapping with {len(mapping)} items for {expansion}")
+    logger.debug(f"Built compatible items mapping with {len(mapping)} items")
     return mapping
 
 
-def get_compatible_items_map(expansion: str = "TBC") -> dict[str, str]:
+def get_compatible_items_map() -> dict[str, str]:
     """Get the compatible items to tier mapping (lazy-loaded singleton)."""
     global _COMPATIBLE_ITEMS_MAP
     if _COMPATIBLE_ITEMS_MAP is None:
-        _COMPATIBLE_ITEMS_MAP = _build_compatible_items_mapping(expansion)
+        _COMPATIBLE_ITEMS_MAP = _build_compatible_items_mapping()
     return _COMPATIBLE_ITEMS_MAP
 
 
@@ -190,6 +201,8 @@ def count_tier_tokens_for_raider(
 
     # Initialize counts for all known tiers
     tier_counts = {
+        "Tier 2.5": 0,
+        "Tier 3": 0,
         "Tier 4": 0,
         "Tier 5": 0,
         "Tier 6": 0
@@ -383,8 +396,12 @@ def get_slots_for_matching(item_slot: str) -> list[str]:
         logger.warning("Empty item_slot provided for matching")
         return []
 
-    slot_key = item_slot.lower().strip()
-    slots = SLOT_GROUPS.get(slot_key, [slot_key])
+    slots: list[str] = []
+    # Compound slots (e.g. "Shoulder/Feet" tokens) match any of their parts
+    for slot_part in split_slots(item_slot.lower()):
+        for slot in SLOT_GROUPS.get(slot_part, [slot_part]):
+            if slot not in slots:
+                slots.append(slot)
     logger.debug(f"Slot '{item_slot}' matches slots: {slots}")
     return slots
 
@@ -1043,7 +1060,7 @@ def find_last_received_for_slot(
             token_slot = token_info["slot"]
             token_ilvl = token_info["ilvl"]
             logger.debug(f"Item '{item_name}' found in token slot map for slot '{token_slot}' (ilvl {token_ilvl})")
-            if token_slot in slots_to_match_lower:
+            if any(s in slots_to_match_lower for s in split_slots(token_slot)):
                 logger.debug(f"Matched special item: {item_name} (slot: {token_slot}, ilvl: {token_ilvl}) received on {received_at}")
                 matching_items.append({
                     "item_name": item_name,

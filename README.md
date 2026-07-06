@@ -156,9 +156,7 @@ You'll need:
 ## Configuration
 
 ### Game Version
-- TBC Anniversary or Era (WIP)
-
-> **Note:** Era functionality is still a work in progress. It should be functional, but some items (such as tier tokens) may be missing.
+- TBC Anniversary or Era (Molten Core, Onyxia's Lair, Blackwing Lair, Temple of Ahn'Qiraj and Naxxramas, with tier token, exchange item and recipe support)
 
 ### WoW Server
 - **Region & Realm** - Click the "WoW Server" button in the header to pick your region and realm
