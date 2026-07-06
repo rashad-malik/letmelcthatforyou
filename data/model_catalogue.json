@@ -21,6 +21,9 @@
     "claude-3-sonnet": {
       "context_window": 200000
     },
+    "claude-fable-5": {
+      "context_window": 1000000
+    },
     "claude-haiku-4-5": {
       "context_window": 200000
     },
@@ -39,6 +42,9 @@
     "claude-opus-4-7": {
       "context_window": 1000000
     },
+    "claude-opus-4-8": {
+      "context_window": 1000000
+    },
     "claude-sonnet-4-0": {
       "context_window": 200000
     },
@@ -46,6 +52,9 @@
       "context_window": 1000000
     },
     "claude-sonnet-4-6": {
+      "context_window": 1000000
+    },
+    "claude-sonnet-5": {
       "context_window": 1000000
     },
     "claude-v1": {
@@ -95,6 +104,21 @@
     },
     "deepseek-reasoner": {
       "context_window": 64000
+    },
+    "deepseek-v3.1-terminus": {
+      "context_window": null
+    },
+    "deepseek-v3.2": {
+      "context_window": null
+    },
+    "deepseek-v3.2-exp": {
+      "context_window": null
+    },
+    "deepseek-v4-flash": {
+      "context_window": 1000000
+    },
+    "deepseek-v4-pro": {
+      "context_window": 1000000
     }
   },
   "fireworks": {
@@ -107,11 +131,23 @@
     "deepseek-v3p2": {
       "context_window": 163840
     },
+    "deepseek-v4-flash": {
+      "context_window": null
+    },
+    "deepseek-v4-pro": {
+      "context_window": null
+    },
     "gemma-3-27b-it": {
       "context_window": 131000
     },
     "glm-4p7": {
       "context_window": 202752
+    },
+    "glm-5p1": {
+      "context_window": null
+    },
+    "glm-5p2": {
+      "context_window": 1040000
     },
     "gpt-oss-120b": {
       "context_window": 131072
@@ -120,6 +156,12 @@
       "context_window": 131072
     },
     "kimi-k2p5": {
+      "context_window": 262144
+    },
+    "kimi-k2p6": {
+      "context_window": null
+    },
+    "kimi-k2p7-code": {
       "context_window": 262144
     },
     "llama-v3p1-8b-instruct": {
@@ -131,11 +173,26 @@
     "minimax-m2p1": {
       "context_window": 204800
     },
+    "minimax-m2p7": {
+      "context_window": null
+    },
+    "minimax-m3": {
+      "context_window": 524288
+    },
+    "nemotron-3-ultra-nvfp4": {
+      "context_window": 262000
+    },
     "qwen2p5-vl-72b-instruct": {
       "context_window": 128000
     },
     "qwen3-235b-a22b": {
       "context_window": 128000
+    },
+    "qwen3p6-plus": {
+      "context_window": null
+    },
+    "qwen3p7-plus": {
+      "context_window": 262144
     }
   },
   "gemini": {
@@ -160,10 +217,16 @@
     "claude-4-sonnet": {
       "context_window": 200000
     },
+    "claude-fable-5": {
+      "context_window": 1000000
+    },
     "claude-opus-4-6": {
       "context_window": 200000
     },
     "claude-opus-4-7": {
+      "context_window": 1000000
+    },
+    "claude-opus-4-8": {
       "context_window": 1000000
     },
     "gemini-1.0-pro-vision-001": {
@@ -205,11 +268,14 @@
     "gemini-3.1-flash-image-preview": {
       "context_window": 1000000
     },
-    "gemini-3.1-flash-lite-preview": {
+    "gemini-3.1-flash-lite": {
       "context_window": 1000000
     },
     "gemini-3.1-pro-preview": {
       "context_window": null
+    },
+    "gemini-3.5-flash": {
+      "context_window": 1000000
     },
     "gemini-embedding-001": {
       "context_window": null
@@ -229,10 +295,19 @@
     "gemini-pro-1.5": {
       "context_window": 2000000
     },
+    "gemma-2-27b-it": {
+      "context_window": null
+    },
     "gemma-3": {
       "context_window": null
     },
     "gemma-3n": {
+      "context_window": null
+    },
+    "gemma-4-26b-a4b-it": {
+      "context_window": null
+    },
+    "gemma-4-31b-it": {
       "context_window": null
     }
   },
@@ -330,6 +405,12 @@
     "codestral": {
       "context_window": null
     },
+    "codestral-2508": {
+      "context_window": null
+    },
+    "devstral-2512": {
+      "context_window": null
+    },
     "devstral-small": {
       "context_window": null
     },
@@ -342,7 +423,13 @@
     "magistral-small": {
       "context_window": null
     },
+    "ministral-14b-2512": {
+      "context_window": null
+    },
     "ministral-3b": {
+      "context_window": null
+    },
+    "ministral-3b-2512": {
       "context_window": null
     },
     "ministral-8b": {
@@ -355,6 +442,9 @@
       "context_window": null
     },
     "mistral-large": {
+      "context_window": null
+    },
+    "mistral-large-2512": {
       "context_window": null
     },
     "mistral-medium-3": {
@@ -375,6 +465,15 @@
     "mistral-small-24b-instruct-2501:free": {
       "context_window": null
     },
+    "mistral-small-2603": {
+      "context_window": null
+    },
+    "mistral-small-3.1-24b-instruct": {
+      "context_window": null
+    },
+    "mistral-small-3.2-24b-instruct": {
+      "context_window": null
+    },
     "mistral-small-latest": {
       "context_window": null
     },
@@ -389,9 +488,15 @@
     },
     "pixtral-large": {
       "context_window": null
+    },
+    "voxtral-small-24b-2507": {
+      "context_window": null
     }
   },
   "moonshot": {
+    "kimi-k2": {
+      "context_window": null
+    },
     "kimi-k2-0711-preview": {
       "context_window": 131072
     },
@@ -408,6 +513,12 @@
       "context_window": 262144
     },
     "kimi-k2.5": {
+      "context_window": 262144
+    },
+    "kimi-k2.6": {
+      "context_window": 262144
+    },
+    "kimi-k2.7-code": {
       "context_window": 262144
     },
     "moonshot-v1-128k": {
@@ -560,11 +671,17 @@
     "gpt-5.2-pro": {
       "context_window": 400000
     },
+    "gpt-5.3": {
+      "context_window": 128000
+    },
     "gpt-5.3-codex": {
       "context_window": 400000
     },
     "gpt-5.4": {
       "context_window": 1050000
+    },
+    "gpt-5.4-image-2": {
+      "context_window": null
     },
     "gpt-5.4-mini": {
       "context_window": 400000
@@ -574,6 +691,30 @@
     },
     "gpt-5.4-pro": {
       "context_window": 1050000
+    },
+    "gpt-5.5": {
+      "context_window": 1000000
+    },
+    "gpt-5.5-pro": {
+      "context_window": 1000000
+    },
+    "gpt-audio": {
+      "context_window": null
+    },
+    "gpt-audio-mini": {
+      "context_window": null
+    },
+    "gpt-chat-latest": {
+      "context_window": null
+    },
+    "gpt-oss-120b": {
+      "context_window": null
+    },
+    "gpt-oss-20b": {
+      "context_window": null
+    },
+    "gpt-oss-safeguard-20b": {
+      "context_window": null
     },
     "gpt-realtime": {
       "context_window": null
@@ -652,10 +793,7 @@
     "ai21/jamba-instruct": {
       "context_window": null
     },
-    "aion-1.0": {
-      "context_window": null
-    },
-    "aion-1.0-mini": {
+    "ai21/jamba-large-1.7": {
       "context_window": null
     },
     "aion-labs/aion-1.0": {
@@ -664,10 +802,10 @@
     "aion-labs/aion-1.0-mini": {
       "context_window": null
     },
-    "aion-labs/aion-rp-llama-3.1-8b": {
+    "aion-labs/aion-2.0": {
       "context_window": null
     },
-    "aion-rp-llama-3.1-8b": {
+    "aion-labs/aion-rp-llama-3.1-8b": {
       "context_window": null
     },
     "alfredpros/codellama-7b-instruct-solidity": {
@@ -679,16 +817,25 @@
     "allenai/molmo-7b-d:free": {
       "context_window": null
     },
+    "allenai/olmo-3-32b-think": {
+      "context_window": null
+    },
     "alpindale/goliath-120b": {
       "context_window": null
     },
     "alpindale/magnum-72b": {
       "context_window": null
     },
+    "amazon/nova-2-lite-v1": {
+      "context_window": null
+    },
     "amazon/nova-lite-v1": {
       "context_window": null
     },
     "amazon/nova-micro-v1": {
+      "context_window": null
+    },
+    "amazon/nova-premier-v1": {
       "context_window": null
     },
     "amazon/nova-pro-v1": {
@@ -721,7 +868,13 @@
     "anthropic/claude-3.7-sonnet": {
       "context_window": null
     },
+    "anthropic/claude-fable-5": {
+      "context_window": 1000000
+    },
     "anthropic/claude-haiku-4.5": {
+      "context_window": null
+    },
+    "anthropic/claude-opus-4": {
       "context_window": null
     },
     "anthropic/claude-opus-4.5": {
@@ -730,8 +883,23 @@
     "anthropic/claude-opus-4.6": {
       "context_window": 1000000
     },
+    "anthropic/claude-opus-4.6-fast": {
+      "context_window": null
+    },
     "anthropic/claude-opus-4.7": {
       "context_window": 1000000
+    },
+    "anthropic/claude-opus-4.7-fast": {
+      "context_window": null
+    },
+    "anthropic/claude-opus-4.8": {
+      "context_window": 1000000
+    },
+    "anthropic/claude-opus-4.8-fast": {
+      "context_window": null
+    },
+    "anthropic/claude-sonnet-4": {
+      "context_window": null
     },
     "anthropic/claude-sonnet-4.5": {
       "context_window": 1000000
@@ -739,7 +907,22 @@
     "anthropic/claude-sonnet-4.6": {
       "context_window": 1000000
     },
+    "anthropic/claude-sonnet-5": {
+      "context_window": 1000000
+    },
     "anubis-pro-105b-v1": {
+      "context_window": null
+    },
+    "arcee-ai/coder-large": {
+      "context_window": null
+    },
+    "arcee-ai/trinity-large-thinking": {
+      "context_window": null
+    },
+    "arcee-ai/trinity-mini": {
+      "context_window": null
+    },
+    "arcee-ai/virtuoso-large": {
       "context_window": null
     },
     "arcee-blitz": {
@@ -748,7 +931,25 @@
     "arliai/qwq-32b-arliai-rpr-v1:free": {
       "context_window": null
     },
+    "baidu/ernie-4.5-vl-424b-a47b": {
+      "context_window": null
+    },
     "bytedance-research/ui-tars-72b:free": {
+      "context_window": null
+    },
+    "bytedance-seed/seed-1.6": {
+      "context_window": null
+    },
+    "bytedance-seed/seed-1.6-flash": {
+      "context_window": null
+    },
+    "bytedance-seed/seed-2.0-lite": {
+      "context_window": null
+    },
+    "bytedance-seed/seed-2.0-mini": {
+      "context_window": null
+    },
+    "bytedance/ui-tars-1.5-7b": {
       "context_window": null
     },
     "caller-large": {
@@ -760,16 +961,10 @@
     "claude-2": {
       "context_window": null
     },
-    "claude-3-haiku": {
-      "context_window": null
-    },
     "claude-3-opus": {
       "context_window": null
     },
     "claude-3-sonnet": {
-      "context_window": null
-    },
-    "claude-3.5-haiku": {
       "context_window": null
     },
     "claude-3.5-sonnet": {
@@ -778,22 +973,16 @@
     "claude-3.7-sonnet": {
       "context_window": null
     },
-    "claude-opus-4": {
-      "context_window": null
-    },
-    "claude-sonnet-4": {
-      "context_window": null
-    },
     "codellama-7b-instruct-solidity": {
-      "context_window": null
-    },
-    "coder-large": {
       "context_window": null
     },
     "codestral-2501": {
       "context_window": null
     },
     "codex-mini": {
+      "context_window": null
+    },
+    "cognitivecomputations/dolphin-mistral-24b-venice-edition:free": {
       "context_window": null
     },
     "cognitivecomputations/dolphin-mixtral-8x22b": {
@@ -832,34 +1021,19 @@
     "command": {
       "context_window": null
     },
-    "command-a": {
-      "context_window": null
-    },
     "command-r": {
-      "context_window": null
-    },
-    "command-r-08-2024": {
       "context_window": null
     },
     "command-r-plus": {
       "context_window": null
     },
-    "command-r-plus-08-2024": {
-      "context_window": null
-    },
-    "command-r7b-12-2024": {
-      "context_window": null
-    },
     "deepcoder-14b-preview:free": {
       "context_window": null
     },
+    "deepcogito/cogito-v2.1-671b": {
+      "context_window": null
+    },
     "deephermes-3-llama-3-8b-preview:free": {
-      "context_window": null
-    },
-    "deepseek-chat": {
-      "context_window": null
-    },
-    "deepseek-chat-v3-0324": {
       "context_window": null
     },
     "deepseek-chat-v3-0324:free": {
@@ -871,12 +1045,6 @@
     "deepseek-prover-v2": {
       "context_window": null
     },
-    "deepseek-r1": {
-      "context_window": null
-    },
-    "deepseek-r1-0528": {
-      "context_window": null
-    },
     "deepseek-r1-0528-qwen3-8b": {
       "context_window": null
     },
@@ -884,9 +1052,6 @@
       "context_window": null
     },
     "deepseek-r1-0528:free": {
-      "context_window": null
-    },
-    "deepseek-r1-distill-llama-70b": {
       "context_window": null
     },
     "deepseek-r1-distill-llama-70b:free": {
@@ -904,9 +1069,6 @@
     "deepseek-r1-distill-qwen-14b:free": {
       "context_window": null
     },
-    "deepseek-r1-distill-qwen-32b": {
-      "context_window": null
-    },
     "deepseek-r1-distill-qwen-32b:free": {
       "context_window": null
     },
@@ -922,9 +1084,6 @@
     "deepseek-v3-base:free": {
       "context_window": null
     },
-    "deepseek-v3.1-terminus": {
-      "context_window": 163840
-    },
     "deepseek/deepseek-chat": {
       "context_window": null
     },
@@ -935,12 +1094,15 @@
       "context_window": null
     },
     "deepseek/deepseek-chat-v3.1": {
-      "context_window": 163840
+      "context_window": null
     },
     "deepseek/deepseek-chat:free": {
       "context_window": null
     },
     "deepseek/deepseek-r1": {
+      "context_window": null
+    },
+    "deepseek/deepseek-r1-0528": {
       "context_window": null
     },
     "deepseek/deepseek-r1-distill-llama-70b": {
@@ -976,7 +1138,19 @@
     "deepseek/deepseek-v3-base:free": {
       "context_window": null
     },
+    "deepseek/deepseek-v3.1-terminus": {
+      "context_window": 163840
+    },
+    "deepseek/deepseek-v3.2": {
+      "context_window": null
+    },
     "deepseek/deepseek-v3.2-exp": {
+      "context_window": null
+    },
+    "deepseek/deepseek-v4-flash": {
+      "context_window": null
+    },
+    "deepseek/deepseek-v4-pro": {
       "context_window": null
     },
     "devstral-small": {
@@ -998,6 +1172,9 @@
       "context_window": null
     },
     "eleutherai/llemma_7b": {
+      "context_window": null
+    },
+    "essentialai/rnj-1-instruct": {
       "context_window": null
     },
     "eva-llama-3.33-70b": {
@@ -1033,9 +1210,6 @@
     "gemini-2.0-flash-lite-001": {
       "context_window": null
     },
-    "gemini-2.5-flash": {
-      "context_window": null
-    },
     "gemini-2.5-flash-lite-preview-06-17": {
       "context_window": null
     },
@@ -1046,9 +1220,6 @@
       "context_window": null
     },
     "gemini-2.5-flash-preview:thinking": {
-      "context_window": null
-    },
-    "gemini-2.5-pro": {
       "context_window": null
     },
     "gemini-2.5-pro-exp-03-25": {
@@ -1063,28 +1234,16 @@
     "gemini-pro-1.5": {
       "context_window": null
     },
-    "gemma-2-27b-it": {
-      "context_window": null
-    },
     "gemma-2-9b-it": {
       "context_window": null
     },
     "gemma-2-9b-it:free": {
       "context_window": null
     },
-    "gemma-3-12b-it": {
-      "context_window": null
-    },
     "gemma-3-12b-it:free": {
       "context_window": null
     },
-    "gemma-3-27b-it": {
-      "context_window": null
-    },
     "gemma-3-27b-it:free": {
-      "context_window": null
-    },
-    "gemma-3-4b-it": {
       "context_window": null
     },
     "gemma-3-4b-it:free": {
@@ -1097,6 +1256,12 @@
       "context_window": null
     },
     "glm-4-32b:free": {
+      "context_window": null
+    },
+    "glm-4.5-air:free": {
+      "context_window": null
+    },
+    "glm-5v-turbo": {
       "context_window": null
     },
     "glm-z1-32b": {
@@ -1126,6 +1291,9 @@
     "google/gemini-2.0-flash-thinking-exp:free": {
       "context_window": null
     },
+    "google/gemini-2.5-flash": {
+      "context_window": null
+    },
     "google/gemini-2.5-flash-image": {
       "context_window": null
     },
@@ -1144,10 +1312,31 @@
     "google/gemini-2.5-flash-preview:thinking": {
       "context_window": null
     },
+    "google/gemini-2.5-pro": {
+      "context_window": null
+    },
     "google/gemini-2.5-pro-exp-03-25:free": {
       "context_window": null
     },
     "google/gemini-2.5-pro-preview-03-25": {
+      "context_window": null
+    },
+    "google/gemini-3-flash-preview": {
+      "context_window": null
+    },
+    "google/gemini-3-pro-image-preview": {
+      "context_window": null
+    },
+    "google/gemini-3.1-flash-image-preview": {
+      "context_window": null
+    },
+    "google/gemini-3.1-flash-lite": {
+      "context_window": null
+    },
+    "google/gemini-3.1-pro-preview": {
+      "context_window": null
+    },
+    "google/gemini-3.5-flash": {
       "context_window": null
     },
     "google/gemini-flash-1.5": {
@@ -1195,7 +1384,28 @@
     "google/gemma-3-4b-it:free": {
       "context_window": null
     },
+    "google/gemma-3n-e4b-it": {
+      "context_window": null
+    },
+    "google/gemma-4-26b-a4b-it": {
+      "context_window": null
+    },
+    "google/gemma-4-26b-a4b-it:free": {
+      "context_window": null
+    },
+    "google/gemma-4-31b-it": {
+      "context_window": null
+    },
+    "google/gemma-4-31b-it:free": {
+      "context_window": null
+    },
     "google/learnlm-1.5-pro-experimental:free": {
+      "context_window": null
+    },
+    "google/lyria-3-clip-preview": {
+      "context_window": null
+    },
+    "google/lyria-3-pro-preview": {
       "context_window": null
     },
     "google/palm-2-chat-bison": {
@@ -1204,55 +1414,13 @@
     "google/palm-2-codechat-bison": {
       "context_window": null
     },
-    "gpt-3.5-turbo": {
-      "context_window": null
-    },
-    "gpt-3.5-turbo-0613": {
-      "context_window": null
-    },
     "gpt-3.5-turbo-1106": {
-      "context_window": null
-    },
-    "gpt-3.5-turbo-16k": {
-      "context_window": null
-    },
-    "gpt-3.5-turbo-instruct": {
-      "context_window": null
-    },
-    "gpt-4": {
       "context_window": null
     },
     "gpt-4-1106-preview": {
       "context_window": null
     },
-    "gpt-4-turbo": {
-      "context_window": null
-    },
-    "gpt-4.1": {
-      "context_window": null
-    },
-    "gpt-4.1-mini": {
-      "context_window": null
-    },
-    "gpt-4.1-nano": {
-      "context_window": null
-    },
     "gpt-4.5-preview": {
-      "context_window": null
-    },
-    "gpt-4o": {
-      "context_window": null
-    },
-    "gpt-4o-2024-05-13": {
-      "context_window": null
-    },
-    "gpt-4o-mini": {
-      "context_window": null
-    },
-    "gpt-4o-mini-search-preview": {
-      "context_window": null
-    },
-    "gpt-4o-search-preview": {
       "context_window": null
     },
     "gpt-4o:extended": {
@@ -1282,22 +1450,28 @@
     "hermes-2-pro-llama-3-8b": {
       "context_window": null
     },
-    "hermes-3-llama-3.1-405b": {
-      "context_window": null
-    },
-    "hermes-3-llama-3.1-70b": {
-      "context_window": null
-    },
     "huggingfaceh4/zephyr-7b-beta:free": {
       "context_window": null
     },
+    "ibm-granite/granite-4.0-h-micro": {
+      "context_window": null
+    },
+    "ibm-granite/granite-4.1-8b": {
+      "context_window": null
+    },
+    "inception/mercury-2": {
+      "context_window": null
+    },
+    "inclusionai/ling-2.6-1t": {
+      "context_window": null
+    },
+    "inclusionai/ling-2.6-flash": {
+      "context_window": null
+    },
+    "inclusionai/ring-2.6-1t": {
+      "context_window": null
+    },
     "infermatic/mn-inferor-12b": {
-      "context_window": null
-    },
-    "inflection-3-pi": {
-      "context_window": null
-    },
-    "inflection-3-productivity": {
       "context_window": null
     },
     "inflection/inflection-3-pi": {
@@ -1327,16 +1501,10 @@
     "kimi-vl-a3b-thinking:free": {
       "context_window": null
     },
+    "kwaipilot/kat-coder-pro-v2": {
+      "context_window": null
+    },
     "l3-euryale-70b": {
-      "context_window": null
-    },
-    "l3-lunaris-8b": {
-      "context_window": null
-    },
-    "l3.1-euryale-70b": {
-      "context_window": null
-    },
-    "l3.3-euryale-70b": {
       "context_window": null
     },
     "latitudegames/wayfarer-large-70b-llama-3.3": {
@@ -1351,6 +1519,15 @@
     "lfm-7b": {
       "context_window": null
     },
+    "liquid/lfm-2-24b-a2b": {
+      "context_window": null
+    },
+    "liquid/lfm-2.5-1.2b-instruct:free": {
+      "context_window": null
+    },
+    "liquid/lfm-2.5-1.2b-thinking:free": {
+      "context_window": null
+    },
     "liquid/lfm-3b": {
       "context_window": null
     },
@@ -1358,12 +1535,6 @@
       "context_window": null
     },
     "liquid/lfm-7b": {
-      "context_window": null
-    },
-    "llama-3-70b-instruct": {
-      "context_window": null
-    },
-    "llama-3-8b-instruct": {
       "context_window": null
     },
     "llama-3-lumimaid-70b": {
@@ -1376,12 +1547,6 @@
       "context_window": null
     },
     "llama-3.1-405b-instruct": {
-      "context_window": null
-    },
-    "llama-3.1-70b-instruct": {
-      "context_window": null
-    },
-    "llama-3.1-8b-instruct": {
       "context_window": null
     },
     "llama-3.1-8b-instruct:free": {
@@ -1408,31 +1573,13 @@
     "llama-3.1-sonar-small-128k-online": {
       "context_window": null
     },
-    "llama-3.2-11b-vision-instruct": {
-      "context_window": null
-    },
     "llama-3.2-11b-vision-instruct:free": {
-      "context_window": null
-    },
-    "llama-3.2-1b-instruct": {
       "context_window": null
     },
     "llama-3.2-1b-instruct:free": {
       "context_window": null
     },
-    "llama-3.2-3b-instruct": {
-      "context_window": null
-    },
-    "llama-3.2-3b-instruct:free": {
-      "context_window": null
-    },
     "llama-3.2-90b-vision-instruct": {
-      "context_window": null
-    },
-    "llama-3.3-70b-instruct": {
-      "context_window": null
-    },
-    "llama-3.3-70b-instruct:free": {
       "context_window": null
     },
     "llama-3.3-8b-instruct:free": {
@@ -1444,25 +1591,13 @@
     "llama-3.3-nemotron-super-49b-v1:free": {
       "context_window": null
     },
-    "llama-4-maverick": {
-      "context_window": null
-    },
     "llama-4-maverick:free": {
-      "context_window": null
-    },
-    "llama-4-scout": {
       "context_window": null
     },
     "llama-4-scout:free": {
       "context_window": null
     },
     "llama-guard-2-8b": {
-      "context_window": null
-    },
-    "llama-guard-3-8b": {
-      "context_window": null
-    },
-    "llama-guard-4-12b": {
       "context_window": null
     },
     "llama3.1-typhoon2-70b-instruct": {
@@ -1484,9 +1619,6 @@
       "context_window": null
     },
     "magnum-v2-72b": {
-      "context_window": null
-    },
-    "magnum-v4-72b": {
       "context_window": null
     },
     "mai-ds-r1:free": {
@@ -1573,6 +1705,9 @@
     "meta-llama/llama-guard-3-8b": {
       "context_window": null
     },
+    "meta-llama/llama-guard-4-12b": {
+      "context_window": null
+    },
     "microsoft/phi-3-medium-128k-instruct": {
       "context_window": null
     },
@@ -1583,6 +1718,9 @@
       "context_window": null
     },
     "microsoft/phi-4": {
+      "context_window": null
+    },
+    "microsoft/phi-4-mini-instruct": {
       "context_window": null
     },
     "microsoft/phi-4-multimodal-instruct": {
@@ -1597,16 +1735,31 @@
     "midnight-rose-70b": {
       "context_window": null
     },
-    "minimax-01": {
-      "context_window": null
-    },
-    "minimax-m1": {
-      "context_window": null
-    },
     "minimax-m1:extended": {
       "context_window": null
     },
     "minimax/minimax-01": {
+      "context_window": null
+    },
+    "minimax/minimax-m1": {
+      "context_window": null
+    },
+    "minimax/minimax-m2": {
+      "context_window": null
+    },
+    "minimax/minimax-m2-her": {
+      "context_window": null
+    },
+    "minimax/minimax-m2.1": {
+      "context_window": null
+    },
+    "minimax/minimax-m2.5": {
+      "context_window": null
+    },
+    "minimax/minimax-m2.7": {
+      "context_window": null
+    },
+    "minimax/minimax-m3": {
       "context_window": null
     },
     "ministral-3b": {
@@ -1627,34 +1780,16 @@
     "mistral-7b-instruct:free": {
       "context_window": null
     },
-    "mistral-large": {
-      "context_window": null
-    },
     "mistral-medium": {
-      "context_window": null
-    },
-    "mistral-medium-3": {
-      "context_window": null
-    },
-    "mistral-nemo": {
       "context_window": null
     },
     "mistral-nemo:free": {
       "context_window": null
     },
-    "mistral-saba": {
-      "context_window": null
-    },
     "mistral-small": {
       "context_window": null
     },
-    "mistral-small-24b-instruct-2501": {
-      "context_window": null
-    },
     "mistral-small-24b-instruct-2501:free": {
-      "context_window": null
-    },
-    "mistral-small-3.1-24b-instruct": {
       "context_window": null
     },
     "mistral-small-3.1-24b-instruct:free": {
@@ -1672,13 +1807,28 @@
     "mistralai/codestral-2501": {
       "context_window": null
     },
+    "mistralai/codestral-2508": {
+      "context_window": null
+    },
     "mistralai/codestral-mamba": {
+      "context_window": null
+    },
+    "mistralai/devstral-2512": {
+      "context_window": null
+    },
+    "mistralai/ministral-14b-2512": {
       "context_window": null
     },
     "mistralai/ministral-3b": {
       "context_window": null
     },
+    "mistralai/ministral-3b-2512": {
+      "context_window": null
+    },
     "mistralai/ministral-8b": {
+      "context_window": null
+    },
+    "mistralai/ministral-8b-2512": {
       "context_window": null
     },
     "mistralai/mistral-7b-instruct": {
@@ -1696,7 +1846,19 @@
     "mistralai/mistral-large": {
       "context_window": null
     },
+    "mistralai/mistral-large-2512": {
+      "context_window": null
+    },
     "mistralai/mistral-medium": {
+      "context_window": null
+    },
+    "mistralai/mistral-medium-3": {
+      "context_window": null
+    },
+    "mistralai/mistral-medium-3-5": {
+      "context_window": null
+    },
+    "mistralai/mistral-medium-3.1": {
       "context_window": null
     },
     "mistralai/mistral-nemo": {
@@ -1717,10 +1879,16 @@
     "mistralai/mistral-small-24b-instruct-2501:free": {
       "context_window": null
     },
+    "mistralai/mistral-small-2603": {
+      "context_window": null
+    },
     "mistralai/mistral-small-3.1-24b-instruct": {
       "context_window": null
     },
     "mistralai/mistral-small-3.1-24b-instruct:free": {
+      "context_window": null
+    },
+    "mistralai/mistral-small-3.2-24b-instruct": {
       "context_window": null
     },
     "mistralai/mistral-tiny": {
@@ -1738,7 +1906,7 @@
     "mistralai/pixtral-large-2411": {
       "context_window": null
     },
-    "mixtral-8x22b-instruct": {
+    "mistralai/voxtral-small-24b-2507": {
       "context_window": null
     },
     "mixtral-8x7b-instruct": {
@@ -1753,8 +1921,26 @@
     "mn-starcannon-12b": {
       "context_window": null
     },
+    "moonshotai/kimi-k2": {
+      "context_window": null
+    },
+    "moonshotai/kimi-k2-0905": {
+      "context_window": null
+    },
+    "moonshotai/kimi-k2-thinking": {
+      "context_window": null
+    },
     "moonshotai/kimi-k2.5": {
       "context_window": null
+    },
+    "moonshotai/kimi-k2.6": {
+      "context_window": null
+    },
+    "moonshotai/kimi-k2.6:free": {
+      "context_window": null
+    },
+    "moonshotai/kimi-k2.7-code": {
+      "context_window": 262144
     },
     "moonshotai/kimi-vl-a3b-thinking:free": {
       "context_window": null
@@ -1762,10 +1948,13 @@
     "moonshotai/moonlight-16b-a3b-instruct:free": {
       "context_window": null
     },
-    "mythalion-13b": {
+    "morph/morph-v3-fast": {
       "context_window": null
     },
-    "mythomax-l2-13b": {
+    "morph/morph-v3-large": {
+      "context_window": null
+    },
+    "mythalion-13b": {
       "context_window": null
     },
     "neversleep/llama-3-lumimaid-70b": {
@@ -1781,6 +1970,9 @@
       "context_window": null
     },
     "neversleep/noromaid-20b": {
+      "context_window": null
+    },
+    "nex-agi/nex-n2-pro:free": {
       "context_window": null
     },
     "noromaid-20b": {
@@ -1801,22 +1993,22 @@
     "nousresearch/hermes-3-llama-3.1-405b": {
       "context_window": null
     },
+    "nousresearch/hermes-3-llama-3.1-405b:free": {
+      "context_window": null
+    },
     "nousresearch/hermes-3-llama-3.1-70b": {
+      "context_window": null
+    },
+    "nousresearch/hermes-4-405b": {
+      "context_window": null
+    },
+    "nousresearch/hermes-4-70b": {
       "context_window": null
     },
     "nousresearch/nous-hermes-2-mixtral-8x7b-dpo": {
       "context_window": null
     },
     "nousresearch/nous-hermes-llama2-13b": {
-      "context_window": null
-    },
-    "nova-lite-v1": {
-      "context_window": null
-    },
-    "nova-micro-v1": {
-      "context_window": null
-    },
-    "nova-pro-v1": {
       "context_window": null
     },
     "nvidia/llama-3.1-nemotron-70b-instruct": {
@@ -1831,28 +2023,46 @@
     "nvidia/llama-3.1-nemotron-ultra-253b-v1:free": {
       "context_window": null
     },
+    "nvidia/llama-3.3-nemotron-super-49b-v1.5": {
+      "context_window": null
+    },
     "nvidia/llama-3.3-nemotron-super-49b-v1:free": {
       "context_window": null
     },
-    "o1": {
+    "nvidia/nemotron-3-nano-30b-a3b": {
+      "context_window": null
+    },
+    "nvidia/nemotron-3-nano-30b-a3b:free": {
+      "context_window": null
+    },
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": {
+      "context_window": null
+    },
+    "nvidia/nemotron-3-super-120b-a12b": {
+      "context_window": null
+    },
+    "nvidia/nemotron-3-super-120b-a12b:free": {
+      "context_window": null
+    },
+    "nvidia/nemotron-3-ultra-550b-a55b": {
+      "context_window": null
+    },
+    "nvidia/nemotron-3-ultra-550b-a55b:free": {
+      "context_window": null
+    },
+    "nvidia/nemotron-3.5-content-safety:free": {
+      "context_window": null
+    },
+    "nvidia/nemotron-nano-12b-v2-vl:free": {
+      "context_window": null
+    },
+    "nvidia/nemotron-nano-9b-v2": {
+      "context_window": null
+    },
+    "nvidia/nemotron-nano-9b-v2:free": {
       "context_window": null
     },
     "o1-mini": {
-      "context_window": null
-    },
-    "o1-pro": {
-      "context_window": null
-    },
-    "o3": {
-      "context_window": null
-    },
-    "o3-mini": {
-      "context_window": null
-    },
-    "o3-pro": {
-      "context_window": null
-    },
-    "o4-mini": {
       "context_window": null
     },
     "open-r1/olympiccoder-32b:free": {
@@ -1915,6 +2125,12 @@
     "openai/gpt-4o-mini": {
       "context_window": null
     },
+    "openai/gpt-4o-mini-search-preview": {
+      "context_window": null
+    },
+    "openai/gpt-4o-search-preview": {
+      "context_window": null
+    },
     "openai/gpt-4o:extended": {
       "context_window": null
     },
@@ -1936,10 +2152,58 @@
     "openai/gpt-5-pro": {
       "context_window": null
     },
+    "openai/gpt-5.1": {
+      "context_window": null
+    },
     "openai/gpt-5.1-codex-mini": {
       "context_window": null
     },
+    "openai/gpt-5.2": {
+      "context_window": null
+    },
+    "openai/gpt-5.2-pro": {
+      "context_window": null
+    },
+    "openai/gpt-5.3-chat": {
+      "context_window": null
+    },
+    "openai/gpt-5.3-codex": {
+      "context_window": null
+    },
+    "openai/gpt-5.4": {
+      "context_window": null
+    },
+    "openai/gpt-5.4-image-2": {
+      "context_window": null
+    },
+    "openai/gpt-5.4-mini": {
+      "context_window": null
+    },
+    "openai/gpt-5.4-nano": {
+      "context_window": null
+    },
+    "openai/gpt-5.4-pro": {
+      "context_window": null
+    },
+    "openai/gpt-5.5": {
+      "context_window": null
+    },
+    "openai/gpt-5.5-pro": {
+      "context_window": null
+    },
+    "openai/gpt-audio": {
+      "context_window": null
+    },
+    "openai/gpt-audio-mini": {
+      "context_window": null
+    },
+    "openai/gpt-chat-latest": {
+      "context_window": null
+    },
     "openai/gpt-oss-120b": {
+      "context_window": null
+    },
+    "openai/gpt-oss-120b:free": {
       "context_window": null
     },
     "openai/gpt-oss-20b": {
@@ -1984,6 +2248,9 @@
     "openhands-lm-32b-v0.1": {
       "context_window": null
     },
+    "perceptron/perceptron-mk1": {
+      "context_window": null
+    },
     "perplexity/llama-3.1-sonar-large-128k-online": {
       "context_window": null
     },
@@ -2017,9 +2284,6 @@
     "phi-3.5-mini-128k-instruct": {
       "context_window": null
     },
-    "phi-4": {
-      "context_window": null
-    },
     "phi-4-multimodal-instruct": {
       "context_window": null
     },
@@ -2038,22 +2302,22 @@
     "pixtral-large-2411": {
       "context_window": null
     },
+    "poolside/laguna-m.1:free": {
+      "context_window": null
+    },
+    "poolside/laguna-xs.2:free": {
+      "context_window": null
+    },
+    "prime-intellect/intellect-3": {
+      "context_window": null
+    },
     "pygmalionai/mythalion-13b": {
       "context_window": null
     },
     "qwen-2-72b-instruct": {
       "context_window": null
     },
-    "qwen-2.5-72b-instruct": {
-      "context_window": null
-    },
     "qwen-2.5-72b-instruct:free": {
-      "context_window": null
-    },
-    "qwen-2.5-7b-instruct": {
-      "context_window": null
-    },
-    "qwen-2.5-coder-32b-instruct": {
       "context_window": null
     },
     "qwen-2.5-coder-32b-instruct:free": {
@@ -2063,9 +2327,6 @@
       "context_window": null
     },
     "qwen-max": {
-      "context_window": null
-    },
-    "qwen-plus": {
       "context_window": null
     },
     "qwen-turbo": {
@@ -2113,6 +2374,12 @@
     "qwen/qwen-plus": {
       "context_window": null
     },
+    "qwen/qwen-plus-2025-07-28": {
+      "context_window": null
+    },
+    "qwen/qwen-plus-2025-07-28:thinking": {
+      "context_window": null
+    },
     "qwen/qwen-turbo": {
       "context_window": null
     },
@@ -2140,7 +2407,130 @@
     "qwen/qwen2.5-vl-72b-instruct:free": {
       "context_window": null
     },
+    "qwen/qwen3-14b": {
+      "context_window": null
+    },
+    "qwen/qwen3-235b-a22b": {
+      "context_window": null
+    },
+    "qwen/qwen3-235b-a22b-2507": {
+      "context_window": null
+    },
+    "qwen/qwen3-235b-a22b-thinking-2507": {
+      "context_window": null
+    },
+    "qwen/qwen3-30b-a3b": {
+      "context_window": null
+    },
+    "qwen/qwen3-30b-a3b-instruct-2507": {
+      "context_window": null
+    },
+    "qwen/qwen3-30b-a3b-thinking-2507": {
+      "context_window": null
+    },
+    "qwen/qwen3-32b": {
+      "context_window": null
+    },
+    "qwen/qwen3-8b": {
+      "context_window": null
+    },
+    "qwen/qwen3-coder": {
+      "context_window": null
+    },
+    "qwen/qwen3-coder-30b-a3b-instruct": {
+      "context_window": null
+    },
+    "qwen/qwen3-coder-flash": {
+      "context_window": null
+    },
+    "qwen/qwen3-coder-next": {
+      "context_window": null
+    },
+    "qwen/qwen3-coder-plus": {
+      "context_window": null
+    },
+    "qwen/qwen3-coder:free": {
+      "context_window": null
+    },
     "qwen/qwen3-max": {
+      "context_window": null
+    },
+    "qwen/qwen3-max-thinking": {
+      "context_window": null
+    },
+    "qwen/qwen3-next-80b-a3b-instruct": {
+      "context_window": null
+    },
+    "qwen/qwen3-next-80b-a3b-instruct:free": {
+      "context_window": null
+    },
+    "qwen/qwen3-next-80b-a3b-thinking": {
+      "context_window": null
+    },
+    "qwen/qwen3-vl-235b-a22b-instruct": {
+      "context_window": null
+    },
+    "qwen/qwen3-vl-235b-a22b-thinking": {
+      "context_window": null
+    },
+    "qwen/qwen3-vl-30b-a3b-instruct": {
+      "context_window": null
+    },
+    "qwen/qwen3-vl-30b-a3b-thinking": {
+      "context_window": null
+    },
+    "qwen/qwen3-vl-32b-instruct": {
+      "context_window": null
+    },
+    "qwen/qwen3-vl-8b-instruct": {
+      "context_window": null
+    },
+    "qwen/qwen3-vl-8b-thinking": {
+      "context_window": null
+    },
+    "qwen/qwen3.5-122b-a10b": {
+      "context_window": null
+    },
+    "qwen/qwen3.5-27b": {
+      "context_window": null
+    },
+    "qwen/qwen3.5-35b-a3b": {
+      "context_window": null
+    },
+    "qwen/qwen3.5-397b-a17b": {
+      "context_window": null
+    },
+    "qwen/qwen3.5-9b": {
+      "context_window": null
+    },
+    "qwen/qwen3.5-flash-02-23": {
+      "context_window": null
+    },
+    "qwen/qwen3.5-plus-02-15": {
+      "context_window": null
+    },
+    "qwen/qwen3.5-plus-20260420": {
+      "context_window": null
+    },
+    "qwen/qwen3.6-27b": {
+      "context_window": null
+    },
+    "qwen/qwen3.6-35b-a3b": {
+      "context_window": null
+    },
+    "qwen/qwen3.6-flash": {
+      "context_window": null
+    },
+    "qwen/qwen3.6-max-preview": {
+      "context_window": null
+    },
+    "qwen/qwen3.6-plus": {
+      "context_window": null
+    },
+    "qwen/qwen3.7-max": {
+      "context_window": null
+    },
+    "qwen/qwen3.7-plus": {
       "context_window": null
     },
     "qwen/qwq-32b": {
@@ -2161,43 +2551,22 @@
     "qwen2.5-vl-32b-instruct:free": {
       "context_window": null
     },
-    "qwen2.5-vl-72b-instruct": {
-      "context_window": null
-    },
     "qwen2.5-vl-72b-instruct:free": {
-      "context_window": null
-    },
-    "qwen3-14b": {
       "context_window": null
     },
     "qwen3-14b:free": {
       "context_window": null
     },
-    "qwen3-235b-a22b": {
-      "context_window": null
-    },
     "qwen3-235b-a22b:free": {
-      "context_window": null
-    },
-    "qwen3-30b-a3b": {
       "context_window": null
     },
     "qwen3-30b-a3b:free": {
       "context_window": null
     },
-    "qwen3-32b": {
-      "context_window": null
-    },
     "qwen3-32b:free": {
       "context_window": null
     },
-    "qwen3-8b": {
-      "context_window": null
-    },
     "qwen3-8b:free": {
-      "context_window": null
-    },
-    "qwen3.5-plus-02-15": {
       "context_window": null
     },
     "qwerky-72b:free": {
@@ -2224,13 +2593,19 @@
     "reka-flash-3:free": {
       "context_window": null
     },
+    "rekaai/reka-edge": {
+      "context_window": null
+    },
+    "rekaai/reka-flash-3": {
+      "context_window": null
+    },
     "rekaai/reka-flash-3:free": {
       "context_window": null
     },
-    "remm-slerp-l2-13b": {
+    "relace/relace-apply-3": {
       "context_window": null
     },
-    "rocinante-12b": {
+    "relace/relace-search": {
       "context_window": null
     },
     "sao10k/fimbulvetr-11b-v2": {
@@ -2240,6 +2615,9 @@
       "context_window": null
     },
     "sao10k/l3-lunaris-8b": {
+      "context_window": null
+    },
+    "sao10k/l3.1-70b-hanami-x1": {
       "context_window": null
     },
     "sao10k/l3.1-euryale-70b": {
@@ -2263,22 +2641,7 @@
     "shisa-v2-llama3.3-70b:free": {
       "context_window": null
     },
-    "skyfall-36b-v2": {
-      "context_window": null
-    },
-    "sonar": {
-      "context_window": null
-    },
-    "sonar-deep-research": {
-      "context_window": null
-    },
-    "sonar-pro": {
-      "context_window": null
-    },
     "sonar-reasoning": {
-      "context_window": null
-    },
-    "sonar-reasoning-pro": {
       "context_window": null
     },
     "sophosympatheia/midnight-rose-70b": {
@@ -2296,7 +2659,25 @@
     "steelskull/l3.3-electra-r1-70b": {
       "context_window": null
     },
+    "stepfun/step-3.5-flash": {
+      "context_window": null
+    },
+    "stepfun/step-3.7-flash": {
+      "context_window": null
+    },
+    "switchpoint/router": {
+      "context_window": null
+    },
+    "tencent/hunyuan-a13b-instruct": {
+      "context_window": null
+    },
+    "tencent/hy3-preview": {
+      "context_window": null
+    },
     "thedrummer/anubis-pro-105b-v1": {
+      "context_window": null
+    },
+    "thedrummer/cydonia-24b-v4.1": {
       "context_window": null
     },
     "thedrummer/rocinante-12b": {
@@ -2323,22 +2704,16 @@
     "undi95/toppy-m-7b": {
       "context_window": null
     },
-    "unslopnemo-12b": {
+    "upstage/solar-pro-3": {
       "context_window": null
     },
     "valkyrie-49b-v1": {
       "context_window": null
     },
-    "virtuoso-large": {
-      "context_window": null
-    },
     "virtuoso-medium-v2": {
       "context_window": null
     },
-    "weaver": {
-      "context_window": null
-    },
-    "wizardlm-2-8x22b": {
+    "writer/palmyra-x5": {
       "context_window": null
     },
     "x-ai/grok-2-1212": {
@@ -2359,13 +2734,34 @@
     "x-ai/grok-4.1-fast:free": {
       "context_window": 2000000
     },
+    "x-ai/grok-4.20": {
+      "context_window": null
+    },
+    "x-ai/grok-4.20-multi-agent": {
+      "context_window": null
+    },
+    "x-ai/grok-4.3": {
+      "context_window": null
+    },
     "x-ai/grok-beta": {
+      "context_window": null
+    },
+    "x-ai/grok-build-0.1": {
       "context_window": null
     },
     "x-ai/grok-code-fast-1": {
       "context_window": 256000
     },
     "x-ai/grok-vision-beta": {
+      "context_window": null
+    },
+    "xiaomi/mimo-v2-flash": {
+      "context_window": null
+    },
+    "xiaomi/mimo-v2.5": {
+      "context_window": null
+    },
+    "xiaomi/mimo-v2.5-pro": {
       "context_window": null
     },
     "xwin-lm/xwin-lm-70b": {
@@ -2375,10 +2771,64 @@
       "context_window": null
     },
     "z-ai/glm-4.5": {
-      "context_window": 131072
+      "context_window": null
+    },
+    "z-ai/glm-4.5-air": {
+      "context_window": null
+    },
+    "z-ai/glm-4.5v": {
+      "context_window": null
     },
     "z-ai/glm-4.6": {
-      "context_window": 202752
+      "context_window": null
+    },
+    "z-ai/glm-4.6v": {
+      "context_window": null
+    },
+    "z-ai/glm-4.7": {
+      "context_window": null
+    },
+    "z-ai/glm-4.7-flash": {
+      "context_window": null
+    },
+    "z-ai/glm-5": {
+      "context_window": null
+    },
+    "z-ai/glm-5-turbo": {
+      "context_window": null
+    },
+    "z-ai/glm-5.1": {
+      "context_window": null
+    },
+    "z-ai/glm-5.2": {
+      "context_window": 1048576
+    },
+    "~anthropic/claude-fable-latest": {
+      "context_window": null
+    },
+    "~anthropic/claude-haiku-latest": {
+      "context_window": null
+    },
+    "~anthropic/claude-opus-latest": {
+      "context_window": null
+    },
+    "~anthropic/claude-sonnet-latest": {
+      "context_window": null
+    },
+    "~google/gemini-flash-latest": {
+      "context_window": null
+    },
+    "~google/gemini-pro-latest": {
+      "context_window": null
+    },
+    "~moonshotai/kimi-latest": {
+      "context_window": null
+    },
+    "~openai/gpt-latest": {
+      "context_window": null
+    },
+    "~openai/gpt-mini-latest": {
+      "context_window": null
     }
   },
   "perplexity": {
@@ -2398,6 +2848,9 @@
       "context_window": null
     },
     "sonar-pro": {
+      "context_window": null
+    },
+    "sonar-pro-search": {
       "context_window": null
     },
     "sonar-reasoning": {
@@ -2656,6 +3109,18 @@
     },
     "grok-4-fast-reasoning": {
       "context_window": 2000000
+    },
+    "grok-4.20": {
+      "context_window": null
+    },
+    "grok-4.20-multi-agent": {
+      "context_window": null
+    },
+    "grok-4.3": {
+      "context_window": 1000000
+    },
+    "grok-build-0.1": {
+      "context_window": null
     },
     "grok-code-fast-1": {
       "context_window": 256000

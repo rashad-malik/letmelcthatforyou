@@ -5,8 +5,8 @@ description = "GUI application for World of Warcraft loot council decisions usin
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "any-llm-sdk[all]>=1.13.0",
-    "genai-prices>=0.0.57",
+    "any-llm-sdk[all]>=1.19.0",
+    "genai-prices>=0.0.69",
     "gql>=4.0.0",
     "httpx>=0.28.1",
     "nicegui>=3.4.1",
@@ -19,6 +19,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pyinstaller>=6.18.0",
+    "pytest>=9.1.1",
 ]
 
 [build-system]
