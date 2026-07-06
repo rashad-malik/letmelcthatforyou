@@ -57,6 +57,10 @@ def run_qt_window(port: int = 8080, server_error: list | None = None, splash=Non
 
     app = QApplication.instance() or QApplication(sys.argv)
 
+    # Folder-picker bridge must be created on the Qt main thread
+    from .folder_picker import install_folder_picker
+    install_folder_picker()
+
     # Set app-wide window icon (inherited by all windows including TMBAuthWindow)
     if getattr(sys, 'frozen', False):
         icon_path = os.path.join(sys._MEIPASS, 'assets', 'logo.ico')
