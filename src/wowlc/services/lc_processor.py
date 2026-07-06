@@ -87,7 +87,7 @@ _GUILD_PRIORITY_NOTE_CONTEXT = """- "Guild Priority Note" contains overarching g
 _LAST_ITEM_RECEIVED_CONTEXT = """- "Last [Slot] received: Never" means the player has NEVER received an item in this slot — treat this as the longest possible wait, higher priority than any number of days."""
 
 _SYSTEM_PROMPT_FOOTER = """
-Be concise. Output only the requested format with a brief rationale."""
+Be concise. Respond in plain text only, with no markdown formatting. Output only the requested format with a brief rationale."""
 
 
 def get_system_prompt(
@@ -165,6 +165,131 @@ class LootDecision:
     token_usage: Optional[TokenUsage] = None
 
 
+# Values a model may emit for an intentionally empty suggestion slot.
+_NONE_VALUES = {"none", "n/a", "na", "nobody", "no one", "-", "--"}
+
+
+def _normalise_suggestion_text(text: str) -> str:
+    """Strip markdown decoration from a suggestion and collapse whitespace."""
+    cleaned = re.sub(r"[*_`\[\]#]", " ", text)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned.strip(" .,;:!—–-")
+
+
+def _resolve_suggestion_text(text: str, candidate_names: List[str]) -> str:
+    """Resolve raw suggestion text to a canonical candidate name, "None", or ""."""
+    cleaned = _normalise_suggestion_text(text)
+    if not cleaned:
+        return ""
+    lowered = cleaned.lower()
+    # A leading none-marker wins even with trailing commentary,
+    # e.g. "None (only two eligible candidates)".
+    if lowered in _NONE_VALUES or re.match(r"(none|n/?a)\b", lowered):
+        return "None"
+    if not candidate_names:
+        # No roster to validate against (shouldn't happen in the normal flow,
+        # since prompt generation fails without candidates): best effort.
+        return cleaned
+    for name in candidate_names:
+        if lowered == name.lower():
+            return name
+    # A candidate name leading the text is the answer slot, e.g.
+    # "Thrall — best attendance and highest wishlist priority".
+    for name in sorted(candidate_names, key=len, reverse=True):
+        if re.match(rf"{re.escape(name)}\b", cleaned, re.IGNORECASE):
+            return name
+    # Otherwise only accept an unambiguous mention. Analysis text that weighs
+    # several candidates ("Kype vs Mckracken ... giving Mckracken the edge")
+    # gives no reliable way to pick the conclusion, so leave it blank rather
+    # than risk naming the wrong player.
+    mentioned = [
+        name for name in candidate_names
+        if re.search(rf"\b{re.escape(name)}\b", cleaned, re.IGNORECASE)
+    ]
+    if len(mentioned) == 1:
+        return mentioned[0]
+    return ""
+
+
+def _extract_suggestion(response_text: str, n: int, candidate_names: List[str]) -> str:
+    lines = response_text.splitlines()
+    # Anchored to line start so a mid-sentence mention in preamble text cannot
+    # match. The leading class tolerates markdown bullets/bold; [^:\n]* allows
+    # commentary between the label and the colon, which is how models most
+    # often break the format, e.g. "**Suggestion 2 (between X and Y):** ...".
+    anchored_patterns = [
+        re.compile(rf"^[\s*_#>\-]*Suggestion\s*{n}\b[^:\n]*:\s*(.*)$", re.IGNORECASE),
+        re.compile(rf"^[\s*_#>\-]*Suggestion\s*{n}\b\s*[-–—]*\s*(.*)$", re.IGNORECASE),
+    ]
+    for pattern in anchored_patterns:
+        for idx, line in enumerate(lines):
+            match = pattern.match(line)
+            if not match:
+                continue
+            resolved = _resolve_suggestion_text(match.group(1), candidate_names)
+            if resolved:
+                return resolved
+            if not _normalise_suggestion_text(match.group(1)):
+                # Bare label: the name may sit on the next non-empty line
+                for next_line in lines[idx + 1:]:
+                    if next_line.strip():
+                        resolved = _resolve_suggestion_text(next_line, candidate_names)
+                        break
+                if resolved:
+                    return resolved
+    # Run-on responses ("Suggestion 1: X Suggestion 2: Y ...") never match the
+    # line-anchored patterns for n > 1. Safe to search anywhere because the
+    # result is still gated by candidate validation. Truncate at the next
+    # label so this slot's text doesn't swallow the following slots' names.
+    match = re.search(rf"Suggestion\s*{n}\b[^:\n]*:\s*([^\n]*)", response_text, re.IGNORECASE)
+    if match:
+        remainder = re.split(
+            r"Suggestion\s*\d|Rationale\b", match.group(1), flags=re.IGNORECASE
+        )[0]
+        return _resolve_suggestion_text(remainder, candidate_names)
+    return ""
+
+
+def parse_lc_response(response_text: str, candidate_names: List[str]) -> Dict[str, str]:
+    """
+    Parse an LLM loot-council response into suggestion and rationale fields.
+
+    Expected format:
+    Suggestion 1: [Name]
+    Suggestion 2: [Name or None]
+    Suggestion 3: [Name or None]
+    Rationale: [Text]
+
+    Each suggestion is validated against candidate_names so that formatting
+    quirks (markdown, inline reasoning on the suggestion line) can never leak
+    analysis text into the name fields: a suggestion always resolves to a
+    canonical candidate name, "None", or "" (with the raw response left
+    untouched in the debug view).
+    """
+    response_text = response_text or ""
+    result = {
+        "suggestion_1": "",
+        "suggestion_2": "",
+        "suggestion_3": "",
+        "rationale": "",
+    }
+
+    for n in (1, 2, 3):
+        suggestion = _extract_suggestion(response_text, n, candidate_names)
+        if not suggestion:
+            logger.warning(
+                f"Could not resolve Suggestion {n} to a candidate name; leaving blank"
+            )
+        result[f"suggestion_{n}"] = suggestion
+
+    # \W{0,3} absorbs markdown between the label and the colon ("**Rationale:**")
+    match = re.search(r"Rationale\W{0,3}[:\s]+(.+)", response_text, re.IGNORECASE | re.DOTALL)
+    if match:
+        result["rationale"] = re.sub(r"[*`]", "", match.group(1)).strip()
+
+    return result
+
+
 class LootCouncilProcessor:
     """
     Processes loot council decisions via LLM APIs.
@@ -187,7 +312,7 @@ class LootCouncilProcessor:
         self,
         api_key: str = "",
         provider: str = "anthropic",
-        model: str = "claude-sonnet-4-20250514",
+        model: str = "claude-sonnet-5",
         delay_seconds: float = 2.0,
         base_url: str = ""
     ):
@@ -197,7 +322,7 @@ class LootCouncilProcessor:
         Args:
             api_key: API key for hosted providers (ignored for local)
             provider: any-llm provider key (e.g. "anthropic", "openai", "ollama")
-            model: Model to use (default: claude-sonnet-4-20250514)
+            model: Model to use (default: claude-sonnet-5)
             delay_seconds: Delay between API calls (default: 2.0 for rate limiting)
             base_url: Base URL for local providers (ignored for hosted)
         """
@@ -433,13 +558,18 @@ class LootCouncilProcessor:
                 response_text,
                 item_name,
                 prompt_result["item_slot"],
+                candidate_names=prompt_result.get("candidate_names", []),
                 debug_prompt=full_prompt,
                 debug_response=response_text,
                 token_usage=token_usage
             )
 
             # Record Suggestion 1 allocation for session tracking
-            if decision.success and decision.suggestion_1:
+            if (
+                decision.success
+                and decision.suggestion_1
+                and decision.suggestion_1 != "None"
+            ):
                 self.record_allocation(decision.suggestion_1)
 
             return decision
@@ -506,6 +636,7 @@ class LootCouncilProcessor:
         response_text: str,
         item_name: str,
         item_slot: Optional[str],
+        candidate_names: Optional[List[str]] = None,
         debug_prompt: Optional[str] = None,
         debug_response: Optional[str] = None,
         token_usage: Optional[TokenUsage] = None
@@ -513,44 +644,18 @@ class LootCouncilProcessor:
         """
         Parse the LLM response into a structured decision.
 
-        Expected format:
-        Suggestion 1: [Name]
-        Suggestion 2: [Name]
-        Suggestion 3: [Name]
-        Rationale: [Text]
+        Delegates to parse_lc_response, which validates each suggestion
+        against the candidate roster.
         """
-        suggestion_1 = ""
-        suggestion_2 = ""
-        suggestion_3 = ""
-        rationale = ""
-
-        # Extract Suggestion 1
-        match = re.search(r'Suggestion\s*1[:\s]+([^\n]+)', response_text, re.IGNORECASE)
-        if match:
-            suggestion_1 = match.group(1).strip()
-
-        # Extract Suggestion 2
-        match = re.search(r'Suggestion\s*2[:\s]+([^\n]+)', response_text, re.IGNORECASE)
-        if match:
-            suggestion_2 = match.group(1).strip()
-
-        # Extract Suggestion 3
-        match = re.search(r'Suggestion\s*3[:\s]+([^\n]+)', response_text, re.IGNORECASE)
-        if match:
-            suggestion_3 = match.group(1).strip()
-
-        # Extract Rationale (everything after "Rationale:")
-        match = re.search(r'Rationale[:\s]+(.+)', response_text, re.IGNORECASE | re.DOTALL)
-        if match:
-            rationale = match.group(1).strip()
+        parsed = parse_lc_response(response_text, candidate_names or [])
 
         return LootDecision(
             item_name=item_name,
             item_slot=item_slot,
-            suggestion_1=suggestion_1,
-            suggestion_2=suggestion_2,
-            suggestion_3=suggestion_3,
-            rationale=rationale,
+            suggestion_1=parsed["suggestion_1"],
+            suggestion_2=parsed["suggestion_2"],
+            suggestion_3=parsed["suggestion_3"],
+            rationale=parsed["rationale"],
             success=True,
             debug_prompt=debug_prompt,
             debug_response=debug_response,

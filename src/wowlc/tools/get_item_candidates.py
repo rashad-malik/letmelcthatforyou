@@ -1147,6 +1147,7 @@ def get_item_candidates_prompt(
         - item_name: str
         - item_slot: str
         - prompt: str (the formatted prompt for the LLM)
+        - candidate_names: list[str] (raider names, for validating the LLM response)
         - error: str (if success=False)
     """
     if session_allocations is None:
@@ -1163,6 +1164,7 @@ def get_item_candidates_prompt(
                 "item_name": item_name,
                 "item_slot": result.item_slot,
                 "prompt": "",
+                "candidate_names": [],
                 "error": f"No eligible candidates found for {item_name}"
             }
 
@@ -1402,13 +1404,17 @@ def get_item_candidates_prompt(
         prompt_lines.append("## Your Task")
         prompt_lines.append("Select Suggestion 1, Suggestion 2, and Suggestion 3 recipients for this item.")
         prompt_lines.append("- If fewer than 3 eligible candidates exist, use \"None\" for empty slots")
-        prompt_lines.append("- Briefly reference which policy rule(s) determined your Suggestion 1 choice")
         prompt_lines.append("")
-        prompt_lines.append("Respond in this exact format:")
+        prompt_lines.append("Respond in this exact format, as plain text with no markdown:")
         prompt_lines.append("Suggestion 1: [Name]")
         prompt_lines.append("Suggestion 2: [Name or None]")
         prompt_lines.append("Suggestion 3: [Name or None]")
-        prompt_lines.append("Rationale: [1-2 sentences referencing the deciding policy rule]")
+        prompt_lines.append("Rationale: [1-2 sentences referencing the policy rule(s) that determined your Suggestion 1 choice]")
+        prompt_lines.append("")
+        prompt_lines.append(
+            "Each Suggestion line must contain ONLY the player's name (or None) — "
+            "no reasoning, brackets, or commentary. Put all reasoning in the Rationale line."
+        )
 
         prompt = "\n".join(prompt_lines)
 
@@ -1417,6 +1423,7 @@ def get_item_candidates_prompt(
             "item_name": item_name,
             "item_slot": result.item_slot,
             "prompt": prompt,
+            "candidate_names": candidates_df["Raider Name"].tolist(),
             "has_custom_notes": has_custom_notes,
             "has_wishlist_position": show_wishlist_position,
             "has_ilvl_comparison": show_ilvl_upgrade,
@@ -1431,6 +1438,7 @@ def get_item_candidates_prompt(
             "item_name": item_name,
             "item_slot": None,
             "prompt": "",
+            "candidate_names": [],
             "error": str(e)
         }
     except Exception as e:
@@ -1439,6 +1447,7 @@ def get_item_candidates_prompt(
             "item_name": item_name,
             "item_slot": None,
             "prompt": "",
+            "candidate_names": [],
             "error": f"Unexpected error: {str(e)}"
         }
 
