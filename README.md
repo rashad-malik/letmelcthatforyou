@@ -40,6 +40,8 @@
 - **Crafting Recipe Support (TBC)** - Pattern, Plans, Design, and Schematic drops are LC'd alongside regular gear, with optional profession-aware candidate filtering so a "Pattern: Belt of Blasting" only goes to tailors
 - **Batch Processing** - Process entire raid zones item-by-item with progress tracking; high-priority items are LC'd first based on TMB item tier
 - **CSV Export** - Save all decisions for review and record-keeping
+- **Custom Realms & Parse Zones** - Add realms (with their WarcraftLogs server slug) and WCL parse zones that aren't in the bundled lists
+- **Configurable File Locations** - Choose where CSV exports and log files are written
 
 <table>
   <tr>
@@ -158,6 +160,10 @@ You'll need:
 
 > **Note:** Era functionality is still a work in progress. It should be functional, but some items (such as tier tokens) may be missing.
 
+### WoW Server
+- **Region & Realm** - Click the "WoW Server" button in the header to pick your region and realm
+- **Custom Realms** - If your realm isn't in the bundled list, open **Manage custom realms** in the same dialog and add it with its name and WarcraftLogs server slug. The slug is auto-filled from the name (e.g. `Nek'Rosh` → `nekrosh`), but you can edit it — it must match the slug used in your realm's WarcraftLogs URLs. Custom realms are saved per region and game version
+
 ### Core Connections Tab
 - **ThatsMyBIS** - Guild ID and Discord authentication
 - **WarcraftLogs** - API credentials for pulling log data
@@ -168,9 +174,11 @@ You'll need:
 - **Candidate Rules** - Configure who can receive loot: allow alts, give priority to mains, enable tank priority, and include raider notes (public or officer)
 - **Policy Mode** - Choose between Simple (metric-based priority rules) or Custom (freeform written policy)
 - **Decision Priorities** (Simple mode) - Drag-and-drop metrics to set priority order; top = highest priority. Each metric can be toggled on/off and some have sub-settings (e.g. attendance lookback days, parse zone, loot lookback days)
+- **Custom Parse Zones** - Use the edit button next to the Parse Zone dropdown to add zones not in the bundled list. Enter the WCL zone ID (the number in a WarcraftLogs URL, e.g. `.../zone/1056`) and a label; custom zones are saved per game version
 - **Generated Rules Preview** (Simple mode) - Live preview of the numbered rules that will be sent to the LLM based on your metric selections
 - **Tracked Metrics & Custom Policy** (Custom mode) - Toggle which metrics appear in candidate data, and write your own guild loot policy in a freeform text editor
 - **Currently Equipped** - Optionally fetch each raider's equipped gear via the Blizzard API or WarcraftLogs API, enabling ilvl upgrade comparisons and tier token tracking
+- **File Locations** - Choose where CSV exports and log files are written. Browse to a folder (or type an absolute path) and click Save; use the reset button to return to the platform default. Log folder changes take effect after restarting the app
 
 ### Run LC Tab
 - **Mode Selection** - Single item lookup or full raid zone processing
@@ -254,6 +262,8 @@ Documents/Let Me LC That For You/
 └── Logs/                   # Log file for debugging and error tracking
 ```
 
+> The `Exports` and `Logs` locations shown above are the defaults — both can be moved to any folder you like via **Settings → File Locations**.
+
 ### Application Data (AppData folder)
 ```
 AppData/Local/letmelcthatforyou/
@@ -270,8 +280,8 @@ Planned features for upcoming releases:
 
 - ~~**BoP Gear Recipes** - Support for bind-on-pickup crafted gear and player profession considerations~~ ✅ Shipped
 - **Extended Parse Options** - Additional parse filtering options (e.g., parses by average item level)
-- **Path Configuration** - User-configurable paths for application files and exports
-- **Custom Realm Lists** - User-defined realm lists for servers not included in the default selection
+- ~~**Path Configuration** - User-configurable paths for application files and exports~~ ✅ Shipped
+- ~~**Custom Realm Lists** - User-defined realm lists for servers not included in the default selection~~ ✅ Shipped
 
 ---
 

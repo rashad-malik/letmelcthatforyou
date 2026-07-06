@@ -2,10 +2,13 @@
 Settings tab for the GUI configuration interface.
 Combines General Settings (server, cache) and Council Settings (metrics, raider notes).
 """
-from nicegui import ui
+from nicegui import ui, run
 import json
 import os
+import re
+from pathlib import Path
 from wowlc.core.paths import get_path_manager
+from wowlc.core.zones import canonical_version_key, resolve_version_key, get_zone_options
 from ..shared import (
     config,
     POLICY_PATH,
@@ -99,6 +102,28 @@ def save_policy_content(policy_text):
         ui.notify(f'Error saving policy: {str(e)}', type='negative')
 
 
+# --- File location helpers ---
+
+def _validate_dir(raw: str) -> tuple[bool, str]:
+    """Validate a folder path for use as an export/log location.
+
+    An empty string is valid (means "use the default").
+    """
+    if not raw:
+        return True, ""
+    p = Path(raw).expanduser()
+    if not p.is_absolute():
+        return False, 'Please enter an absolute folder path'
+    try:
+        p.mkdir(parents=True, exist_ok=True)
+        probe = p / ".wowlc_write_test"
+        probe.touch()
+        probe.unlink()
+    except OSError as e:
+        return False, f'Folder is not writable: {e}'
+    return True, ""
+
+
 # --- Realm helpers ---
 
 def _load_realm_data() -> dict:
@@ -113,14 +138,31 @@ def _load_realm_data() -> dict:
     return _realm_data
 
 
+def _version_key(game_version: str) -> str:
+    """Map the header toggle label to the canonical realms.json key."""
+    return canonical_version_key(game_version)
+
+
+def slugify_realm_name(name: str) -> str:
+    """Slugify a realm display name following WCL conventions (Nek'Rosh -> nekrosh)."""
+    s = re.sub(r"['’`]", "", name.strip().lower())
+    s = re.sub(r"[^a-z0-9]+", "-", s)
+    return s.strip("-")
+
+
+# Valid slug: lowercase alphanumeric segments separated by single hyphens
+REALM_SLUG_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+
+
 def fetch_realm_data(game_version: str, region: str) -> dict[str, str]:
-    """Get realms for a game version and region from the static database."""
+    """Get realms for a game version and region (bundled list merged with custom realms)."""
     data = _load_realm_data()
-    version_key = "Era" if game_version == "Era (WIP)" else game_version
-    return data.get(version_key, {}).get(region.upper(), {})
+    version_key = _version_key(game_version)
+    bundled = data.get(version_key, {}).get(region.upper(), {})
+    return {**bundled, **config.get_custom_realms(version_key, region)}
 
 
-def update_server_options(server_region, server_slug, game_version_toggle):
+def update_server_options(server_region, server_slug, game_version_toggle, preferred_name: str | None = None):
     """Update the server dropdown based on selected region and game version."""
     global _current_realms
 
@@ -133,7 +175,10 @@ def update_server_options(server_region, server_slug, game_version_toggle):
         if _current_realms:
             realm_names = sorted(_current_realms.keys())
             server_slug.options = realm_names
-            server_slug.value = realm_names[0]
+            if preferred_name in realm_names:
+                server_slug.value = preferred_name
+            elif server_slug.value not in realm_names:
+                server_slug.value = realm_names[0]
         else:
             server_slug.options = []
             server_slug.value = None
@@ -195,6 +240,106 @@ def create_server_settings_dialog(game_version_toggle):
                 server_slug_unsaved = ui.label('Unsaved changes!').classes('text-red-500 text-xs')
                 server_slug_unsaved.visible = False
 
+            # Custom realm management
+            with ui.expansion('Manage custom realms', icon='edit').classes('w-full'):
+                ui.label('Added to the currently selected region and game version.').classes('text-xs text-gray-500')
+
+                name_input = ui.input(label='Realm name').classes('w-full')
+                slug_input = ui.input(label='Slug').classes('w-full')
+
+                # Auto-fill the slug from the name until the user edits it manually;
+                # the syncing flag stops the programmatic fill re-triggering on_slug_change.
+                _slug_state = {'manual': False, 'syncing': False}
+
+                def on_name_change(e):
+                    if not _slug_state['manual']:
+                        _slug_state['syncing'] = True
+                        slug_input.value = slugify_realm_name(e.value or '')
+                        _slug_state['syncing'] = False
+
+                def on_slug_change(e):
+                    if _slug_state['syncing']:
+                        return
+                    # Clearing the slug re-enables auto-fill
+                    _slug_state['manual'] = bool(e.value)
+
+                name_input.on_value_change(on_name_change)
+                slug_input.on_value_change(on_slug_change)
+
+                def add_custom_realm_clicked():
+                    name = (name_input.value or '').strip()
+                    slug = (slug_input.value or '').strip()
+                    region = ui_refs['server_region'].value
+                    game_version = game_version_toggle.value
+
+                    if not region or not game_version:
+                        ui.notify('Select a region and game version first', type='negative')
+                        return
+                    if not name:
+                        ui.notify('Realm name cannot be empty', type='negative')
+                        return
+                    if not REALM_SLUG_PATTERN.match(slug):
+                        ui.notify(
+                            'Slug must be lowercase letters/numbers separated by hyphens (e.g. pyrewood-village)',
+                            type='negative'
+                        )
+                        return
+                    existing = fetch_realm_data(game_version, region)
+                    if name.lower() in (n.lower() for n in existing):
+                        ui.notify(f'A realm named "{name}" already exists for {region}', type='negative')
+                        return
+
+                    config.add_custom_realm(_version_key(game_version), region, name, slug)
+                    update_server_options(
+                        ui_refs['server_region'],
+                        ui_refs['server_slug'],
+                        game_version_toggle,
+                        preferred_name=name
+                    )
+                    custom_realm_list.refresh()
+                    name_input.value = ''
+                    slug_input.value = ''
+                    _slug_state['manual'] = False
+                    ui.notify(f'Realm "{name}" added', type='positive')
+
+                ui.button('Add realm', icon='add', on_click=add_custom_realm_clicked)
+
+                def delete_custom_realm(name: str, slug: str):
+                    config.remove_custom_realm(
+                        _version_key(game_version_toggle.value),
+                        ui_refs['server_region'].value,
+                        name
+                    )
+                    if slug == config.get_wcl_server_slug_raw():
+                        ui.notify(
+                            'Deleted realm was your saved server — select and save a new one.',
+                            type='warning'
+                        )
+                    update_server_options(
+                        ui_refs['server_region'],
+                        ui_refs['server_slug'],
+                        game_version_toggle
+                    )
+                    custom_realm_list.refresh()
+
+                @ui.refreshable
+                def custom_realm_list():
+                    region = ui_refs['server_region'].value or 'US'
+                    custom = config.get_custom_realms(_version_key(game_version_toggle.value), region)
+                    if not custom:
+                        ui.label('No custom realms for this region/version.').classes('text-xs text-gray-500 italic')
+                        return
+                    for realm_name in sorted(custom):
+                        realm_slug = custom[realm_name]
+                        with ui.row().classes('w-full items-center justify-between'):
+                            ui.label(f'{realm_name} ({realm_slug})').classes('text-sm')
+                            ui.button(
+                                icon='delete',
+                                on_click=lambda n=realm_name, s=realm_slug: delete_custom_realm(n, s)
+                            ).props('flat round dense color=negative')
+
+                custom_realm_list()
+
             # Update servers when region changes
             def on_region_change():
                 update_server_options(
@@ -203,17 +348,20 @@ def create_server_settings_dialog(game_version_toggle):
                     game_version_toggle
                 )
                 check_field_changed('server_region_dialog', ui_refs['server_region'].value)
+                custom_realm_list.refresh()
 
             ui_refs['server_region'].on_value_change(on_region_change)
 
             # Update servers when game version toggle changes
-            game_version_toggle.on_value_change(
-                lambda: update_server_options(
+            def on_dialog_game_version_change():
+                update_server_options(
                     ui_refs['server_region'],
                     ui_refs['server_slug'],
                     game_version_toggle
                 )
-            )
+                custom_realm_list.refresh()
+
+            game_version_toggle.on_value_change(on_dialog_game_version_change)
 
             def initialize_servers():
                 """Initialize the server dropdown on page load."""
@@ -273,6 +421,104 @@ def create_server_settings_dialog(game_version_toggle):
     return dialog, ui_refs, open_dialog
 
 
+# --- Custom Parse Zones Dialog ---
+
+def create_custom_zones_dialog(game_version_toggle, on_zones_changed):
+    """Create the Manage Custom Parse Zones dialog.
+
+    Args:
+        game_version_toggle: The game version toggle UI element from the header.
+        on_zones_changed: Callback run after add/remove; accepts an optional
+            preferred_id keyword to select the newly added zone.
+
+    Returns:
+        Tuple of (dialog, open_function)
+    """
+    with ui.dialog() as dialog:
+        with ui.card().classes('w-full max-w-md p-4'):
+            with ui.row().classes('w-full items-center justify-between mb-2'):
+                with ui.row().classes('items-center gap-2'):
+                    ui.icon('edit_location_alt')
+                    ui.label('Manage Custom Parse Zones').classes('text-xl font-semibold')
+                ui.button(icon='close', on_click=dialog.close).props('flat round')
+
+            ui.label(
+                'Added to the currently selected game version. Zone IDs come from '
+                'WarcraftLogs URLs (e.g. .../zone/1056).'
+            ).classes('text-xs text-gray-500')
+
+            zone_id_input = ui.input(label='WCL zone ID').classes('w-full')
+            label_input = ui.input(label='Label').classes('w-full')
+
+            def add_custom_zone_clicked():
+                version_key = canonical_version_key(game_version_toggle.value)
+                raw_id = (zone_id_input.value or '').strip()
+                zone_label = (label_input.value or '').strip()
+
+                try:
+                    zone_id = int(raw_id)
+                except ValueError:
+                    ui.notify('Zone ID must be a whole number', type='negative')
+                    return
+                if zone_id <= 0:
+                    ui.notify('Zone ID must be a positive number', type='negative')
+                    return
+                if not zone_label:
+                    ui.notify('Label cannot be empty', type='negative')
+                    return
+                if zone_id in get_zone_options(version_key):
+                    ui.notify(f'Zone {zone_id} already exists for {version_key}', type='negative')
+                    return
+
+                config.add_custom_zone(version_key, zone_id, zone_label)
+                custom_zone_list.refresh()
+                on_zones_changed(preferred_id=zone_id)
+                zone_id_input.value = ''
+                label_input.value = ''
+                ui.notify(f'Zone "{zone_label}" added', type='positive')
+
+            ui.button('Add zone', icon='add', on_click=add_custom_zone_clicked)
+
+            def delete_custom_zone(zone_id: int):
+                version_key = canonical_version_key(game_version_toggle.value)
+                config.remove_custom_zone(version_key, zone_id)
+                if config.get_parse_zone_id() == zone_id:
+                    config.set_parse_zone_id(None)
+                    config.set_parse_zone_label("")
+                    ui.notify(
+                        'Deleted zone was your selected parse zone — pick a new one.',
+                        type='warning'
+                    )
+                custom_zone_list.refresh()
+                on_zones_changed()
+
+            @ui.refreshable
+            def custom_zone_list():
+                version_key = canonical_version_key(game_version_toggle.value)
+                custom = config.get_custom_zones(version_key)
+                if not custom:
+                    ui.label('No custom zones for this game version.').classes('text-xs text-gray-500 italic')
+                    return
+                for zone_id_str in sorted(custom, key=int):
+                    zone_label = custom[zone_id_str]
+                    with ui.row().classes('w-full items-center justify-between'):
+                        ui.label(f'{zone_label} ({zone_id_str})').classes('text-sm')
+                        ui.button(
+                            icon='delete',
+                            on_click=lambda z=int(zone_id_str): delete_custom_zone(z)
+                        ).props('flat round dense color=negative')
+
+            custom_zone_list()
+
+    register_game_version_callback(custom_zone_list.refresh)
+
+    def open_dialog():
+        custom_zone_list.refresh()
+        dialog.open()
+
+    return dialog, open_dialog
+
+
 # --- Main tab creation ---
 
 def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
@@ -286,30 +532,6 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
 
     # ==================== SECTION 1: Player Metrics ====================
 
-    # Parse zone options by game version (used by parses settings)
-    TBC_ZONE_OPTIONS = {
-        1047: "Karazhan",
-        1048: "Gruul/Mag",
-        1056: "SSC/TK",
-    }
-
-    # Legacy TBC zone IDs (original TBC Classic) - used when Pyrewood dev mode is enabled
-    TBC_ZONE_OPTIONS_LEGACY = {
-        1007: "Karazhan",
-        1008: "Gruul/Mag",
-        1010: "SSC/TK",
-        1011: "BT/Hyjal",
-        1012: "Zul'Aman",
-        1013: "Sunwell",
-    }
-
-    ERA_ZONE_OPTIONS = {
-        1028: "Molten Core",
-        1034: "Blackwing Lair",
-        1035: "Temple of Ahn'Qiraj",
-        1036: "Naxxramas",
-    }
-
     PARSE_FILTER_OPTIONS = {
         "dps_only": "DPS Only",
         "everyone": "Everyone",
@@ -317,11 +539,22 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
 
     def get_zone_options_for_version():
         version = game_version_toggle.value if hasattr(game_version_toggle, 'value') else 'Era'
-        if version == 'Era':
-            return ERA_ZONE_OPTIONS
-        if config.get_pyrewood_dev_mode():
-            return TBC_ZONE_OPTIONS_LEGACY
-        return TBC_ZONE_OPTIONS
+        return get_zone_options(resolve_version_key(version))
+
+    # Refreshers for the parse-zone selects (one per policy panel); run whenever
+    # custom zones change so both dropdowns stay in sync
+    parse_zone_refreshers = []
+
+    def on_zones_changed(preferred_id=None):
+        for refresher in parse_zone_refreshers:
+            refresher()
+        if preferred_id is not None and preferred_id in get_zone_options_for_version():
+            for select_key in ('parse_zone_select', 'parse_zone_select_custom'):
+                if select_key in ui_refs:
+                    ui_refs[select_key].value = preferred_id
+                    ui_refs[select_key].update()
+
+    zones_dialog, open_zones_dialog = create_custom_zones_dialog(game_version_toggle, on_zones_changed)
 
     # --- Section 1A: Candidate Rules ---
     with ui.card().classes('w-full p-4 mb-4'):
@@ -750,12 +983,16 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                         ui_refs['parse_zone_warning'].set_visibility(show_warning)
                                         ui_refs['parse_zone_row_warning'].set_visibility(show_warning)
 
-                                    ui_refs['parse_zone_select'] = ui.select(
-                                        label='Parse Zone',
-                                        options=get_zone_options_for_version(),
-                                        value=config.get_parse_zone_id() if config.get_parse_zone_id() in get_zone_options_for_version() else None,
-                                        on_change=on_zone_change
-                                    ).classes('w-full max-w-xs')
+                                    with ui.row().classes('w-full max-w-xs items-center gap-1'):
+                                        ui_refs['parse_zone_select'] = ui.select(
+                                            label='Parse Zone',
+                                            options=get_zone_options_for_version(),
+                                            value=config.get_parse_zone_id() if config.get_parse_zone_id() in get_zone_options_for_version() else None,
+                                            on_change=on_zone_change
+                                        ).classes('flex-grow')
+                                        ui.button(icon='edit_location_alt', on_click=open_zones_dialog) \
+                                            .props('flat round dense').classes('text-gray-500') \
+                                            .tooltip('Manage custom parse zones')
 
                                     parse_zone_warning = ui.label('No parse zone selected \u2014 parses will not be fetched.') \
                                         .classes('text-xs text-orange-600')
@@ -787,6 +1024,7 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
 
                                     register_game_version_callback(refresh_parse_zone_options)
                                     register_pyrewood_mode_callback(refresh_parse_zone_options)
+                                    parse_zone_refreshers.append(refresh_parse_zone_options)
 
             # SortableJS integration
             ui.add_body_html('''
@@ -973,12 +1211,16 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
                                         ui_refs['parse_zone_warning_custom'].set_visibility(show_warning)
                                         ui_refs['parse_zone_row_warning_custom'].set_visibility(show_warning)
 
-                                    ui_refs['parse_zone_select_custom'] = ui.select(
-                                        label='Parse Zone',
-                                        options=get_zone_options_for_version(),
-                                        value=config.get_parse_zone_id() if config.get_parse_zone_id() in get_zone_options_for_version() else None,
-                                        on_change=on_zone_change_custom
-                                    ).classes('w-full max-w-xs')
+                                    with ui.row().classes('w-full max-w-xs items-center gap-1'):
+                                        ui_refs['parse_zone_select_custom'] = ui.select(
+                                            label='Parse Zone',
+                                            options=get_zone_options_for_version(),
+                                            value=config.get_parse_zone_id() if config.get_parse_zone_id() in get_zone_options_for_version() else None,
+                                            on_change=on_zone_change_custom
+                                        ).classes('flex-grow')
+                                        ui.button(icon='edit_location_alt', on_click=open_zones_dialog) \
+                                            .props('flat round dense').classes('text-gray-500') \
+                                            .tooltip('Manage custom parse zones')
 
                                     parse_zone_warning_custom = ui.label('No parse zone selected \u2014 parses will not be fetched.') \
                                         .classes('text-xs text-orange-600')
@@ -1010,6 +1252,7 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
 
                                     register_game_version_callback(refresh_parse_zone_options_custom)
                                     register_pyrewood_mode_callback(refresh_parse_zone_options_custom)
+                                    parse_zone_refreshers.append(refresh_parse_zone_options_custom)
 
         # Custom Policy Editor card
         with ui.card().classes('w-full p-4 mb-4'):
@@ -1132,5 +1375,92 @@ def create_settings_tab(tmb_guild_id_ref, game_version_toggle):
             currently_equipped_switch.on_value_change(on_currently_equipped_change)
 
         ui_refs['currently_equipped_enabled'] = currently_equipped_switch
+
+    # ==================== SECTION: File Locations ====================
+    with ui.card().classes('w-full p-4 mb-4'):
+        with ui.row().classes('w-full items-center gap-2 mb-2'):
+            ui.icon('folder')
+            ui.label('File Locations').classes('text-lg font-semibold')
+
+        ui.label(
+            'Choose where the app writes files. Leave a field at its default '
+            '(or use the reset button) to restore the standard location.'
+        ).classes('text-sm text-gray-500 mb-4')
+
+        pm = get_path_manager()
+
+        def make_folder_row(field_id: str, label: str, initial_override: str, default_dir: Path):
+            initial = initial_override or str(default_dir)
+            with ui.row().classes('w-full items-center gap-2'):
+                folder_input = ui.input(label=label, value=initial).classes('flex-1')
+
+                async def browse():
+                    browse_btn.disable()
+                    try:
+                        from wowlc.qt import folder_picker
+                        if not folder_picker.is_available():
+                            ui.notify(
+                                'Native folder picker unavailable — type the path manually',
+                                type='warning'
+                            )
+                            return
+                        start_dir = folder_input.value or str(default_dir)
+                        folder = await run.io_bound(
+                            folder_picker.pick_folder, f'Select {label}', start_dir)
+                        if folder:
+                            folder_input.value = folder
+                            check_field_changed(field_id, folder)
+                    finally:
+                        browse_btn.enable()
+
+                browse_btn = ui.button('Browse…', icon='folder_open', on_click=browse)
+
+                def reset_to_default():
+                    folder_input.set_value(str(default_dir))
+                    check_field_changed(field_id, str(default_dir))
+
+                ui.button(icon='restart_alt', on_click=reset_to_default) \
+                    .props('flat round').tooltip('Reset to default')
+
+            unsaved = ui.label('Unsaved changes!').classes('text-red-500 text-xs')
+            unsaved.visible = False
+            register_field_for_tracking(field_id, initial, unsaved)
+            folder_input.on_value_change(lambda e: check_field_changed(field_id, e.value or ""))
+            return folder_input
+
+        export_input = make_folder_row(
+            'export_dir_path', 'Export folder',
+            config.get_export_dir_override(), pm.get_default_export_dir()
+        )
+        log_input = make_folder_row(
+            'log_dir_path', 'Logs folder',
+            config.get_log_dir_override(), pm.get_default_log_dir()
+        )
+        ui.label('Log folder changes take effect after restarting the app.') \
+            .classes('text-xs text-gray-500')
+
+        def save_file_locations():
+            fields = (
+                (export_input, 'export_dir_path', pm.get_default_export_dir(),
+                 config.set_export_dir_override),
+                (log_input, 'log_dir_path', pm.get_default_log_dir(),
+                 config.set_log_dir_override),
+            )
+            for folder_input, field_id, default_dir, _setter in fields:
+                ok, err = _validate_dir((folder_input.value or "").strip())
+                if not ok:
+                    ui.notify(err, type='negative')
+                    return
+            for folder_input, field_id, default_dir, setter in fields:
+                raw = (folder_input.value or "").strip()
+                # Store "" when the value matches the default -> "use default"
+                setter("" if not raw or Path(raw) == default_dir else raw)
+                mark_field_saved(field_id, folder_input.value)
+            ui.notify('File locations saved!', type='positive')
+
+        ui.button('Save', icon='save', on_click=save_file_locations).classes('mt-2')
+
+        ui_refs['export_dir_path'] = export_input
+        ui_refs['log_dir_path'] = log_input
 
     return ui_refs

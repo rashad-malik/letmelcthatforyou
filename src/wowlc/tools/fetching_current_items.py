@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 from ..core.config import get_config_manager
 from ..core.paths import get_path_manager
+from ..core.zones import current_version_key, get_valid_zone_ids as _get_valid_zone_ids
 from ..services.tmb_manager import TMBDataManager
 from ..services.wcl_client import WarcraftLogsClient
 from ..services.nexus_manager import NexusItemManager
@@ -331,23 +332,9 @@ BLIZZARD_SLOT_MAP = {
     "Tabard": None,
 }
 
-# WCL Zone IDs by game version
-TBC_ZONE_IDS = {1047, 1048}  # TBC Anniversary: Kara, Gruul/Mag
-TBC_ZONE_IDS_LEGACY = {1007, 1008, 1010, 1011, 1012, 1013}  # Original TBC Classic: Kara, Gruul/Mag, SSC/TK, BT/Hyjal, ZA, Sunwell
-ERA_ZONE_IDS = {1028, 1034, 1035, 1036}  # MC, BWL, AQ40, Naxx
-
-
 def get_valid_zone_ids() -> set[int]:
-    """Get valid WCL zone IDs for the current game version."""
-    config = get_config_manager()
-    client_version = config.get_wcl_client_version().strip().lower()
-
-    if client_version in ("era", "fresh"):
-        return ERA_ZONE_IDS
-    elif config.get_pyrewood_dev_mode():
-        return TBC_ZONE_IDS_LEGACY
-    else:  # tbc anniversary
-        return TBC_ZONE_IDS
+    """Get valid WCL zone IDs for the current game version (bundled + custom zones)."""
+    return _get_valid_zone_ids(current_version_key())
 
 
 def get_reference_date() -> date:
