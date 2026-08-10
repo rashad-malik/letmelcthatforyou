@@ -20,13 +20,15 @@ from wowlc.tools.get_item_candidates import get_zone_items
 from .connections import check_connections_configured
 
 # Raid zones by game version — TMB instance names. TBC Anniversary raids are
-# gated by Blizzard's phased release schedule (currently Phase 2), so only
+# gated by Blizzard's phased release schedule (currently Phase 3), so only
 # unlocked raids are listed
 TBC_RAID_ZONES = [
     "Gruul's Lair",
     "Magtheridon's Lair",
     "Serpentshrine Cavern",
     "Tempest Keep",
+    "Hyjal Summit",
+    "Black Temple",
 ]
 
 # Legacy TBC raid zones (original TBC Classic) - used when Pyrewood dev mode is enabled
