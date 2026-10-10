@@ -46,8 +46,8 @@ class WarcraftLogsClient:
     
     Attributes:
         TOKEN_URL: OAuth token endpoint for client credentials flow.
-        CLIENT_API_URL: GraphQL endpoint for client credentials access.
-        USER_API_URL: GraphQL endpoint for user token access.
+        CLASSIC_HOST: API host for TBC realms (classic.warcraftlogs.com).
+        VANILLA_HOST: API host for Classic Era realms (vanilla.warcraftlogs.com).
     
     Methods:
         authenticate() -> bool
@@ -66,10 +66,12 @@ class WarcraftLogsClient:
             Check if client has a valid (non-expired) token.
     """
     
-    # WarcraftLogs Classic API endpoints
+    # WarcraftLogs API hosts. TBC realms live on the Classic site; Classic Era
+    # realms live on the Vanilla site. OAuth tokens are shared across hosts,
+    # so only the query endpoint switches with the game version.
+    CLASSIC_HOST: str = "https://classic.warcraftlogs.com"
+    VANILLA_HOST: str = "https://vanilla.warcraftlogs.com"
     TOKEN_URL: str = "https://classic.warcraftlogs.com/oauth/token"
-    CLIENT_API_URL: str = "https://classic.warcraftlogs.com/api/v2/client"
-    USER_API_URL: str = "https://classic.warcraftlogs.com/api/v2/user"
     
     # Token expiry buffer in seconds
     TOKEN_EXPIRY_BUFFER: int = 60
@@ -212,8 +214,11 @@ class WarcraftLogsClient:
         return time.time() < self._token_expires_at
     
     def _get_api_url(self) -> str:
-        """Get the appropriate API URL based on authentication mode."""
-        return self.USER_API_URL if self._using_user_token else self.CLIENT_API_URL
+        """Get the API URL for the current game version and authentication mode."""
+        from wowlc.core.zones import VERSION_ERA, current_version_key
+
+        host = self.VANILLA_HOST if current_version_key() == VERSION_ERA else self.CLASSIC_HOST
+        return host + ("/api/v2/user" if self._using_user_token else "/api/v2/client")
     
     def _ensure_authenticated(self) -> None:
         """

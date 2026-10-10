@@ -69,6 +69,14 @@ class ConfigManager:
         "tmb": {
             "guild_id": ""
         },
+        "custom_realms": {
+            "Era": {"EU": {}, "US": {}},
+            "TBC Anniversary": {"EU": {}, "US": {}}
+        },
+        "custom_zones": {
+            "Era": {},
+            "TBC Anniversary": {}
+        },
         "lookback": {
             "attendance_days": 60,
             "loot_days": 14
@@ -92,11 +100,15 @@ class ConfigManager:
             "tank_priority": False,
             "show_raider_notes": False,
             "raider_note_source": "public_note",
+            "show_professions": False,
             "show_last_item_received": False,
             "simple_mode_metrics": dict(_DEFAULT_MODE_METRICS),
             "custom_mode_metrics": dict(_DEFAULT_MODE_METRICS),
         },
-        "export_path": "",
+        "paths": {
+            "export_dir": "",  # "" = platform default (<user_dir>/Exports)
+            "log_dir": "",     # "" = platform default (<user_dir>/Logs)
+        },
         "llm": {
             "active_provider": "anthropic",
             "active_model": DEFAULT_LLM_MODEL,
@@ -147,27 +159,21 @@ class ConfigManager:
 
         if system == "Windows":
             appdata_dir = Path(os.getenv('LOCALAPPDATA', Path.home() / "AppData" / "Local")) / "letmelcthatforyou"
-            default_export = Path.home() / "Documents" / "Let Me LC That For You" / "Exports"
         elif system == "Darwin":
             appdata_dir = Path.home() / "Library" / "Application Support" / "letmelcthatforyou"
-            default_export = Path.home() / "Documents" / "letmelcthatforyou" / "Exports"
         else:
             # Linux: Use XDG_CONFIG_HOME for config
             xdg_config = os.getenv('XDG_CONFIG_HOME', str(Path.home() / ".config"))
             appdata_dir = Path(xdg_config) / "letmelcthatforyou"
-            # Use XDG documents dir for exports
-            from wowlc.core.paths import _get_xdg_documents_dir
-            xdg_docs = _get_xdg_documents_dir()
-            default_export = xdg_docs / "Let Me LC That For You" / "Exports"
 
         appdata_dir.mkdir(parents=True, exist_ok=True)
         self._config_path = appdata_dir / "config.json"
 
-        # Set default export path
-        self.DEFAULTS["export_path"] = str(default_export)
-
         # Load configuration
         self._config = self._load_config()
+
+        # One-time migration of PathManager's legacy Documents config.json
+        self._migrate_documents_config()
 
     def _load_config(self) -> dict:
         """Load configuration from JSON file, merging with defaults."""
@@ -186,9 +192,20 @@ class ConfigManager:
     def _migrate_legacy(self, loaded: dict) -> None:
         """In-place migration of legacy config shape to current.
 
-        Mutates `loaded`. Currently handles: renaming the LiteLLM-era
-        `together_ai` provider key to any-llm's `together`.
+        Mutates `loaded`. Handles: renaming the LiteLLM-era `together_ai`
+        provider key to any-llm's `together`, and folding the legacy
+        top-level `export_path` into the `paths` section.
         """
+        # Legacy top-level export_path -> paths.export_dir. Older versions
+        # materialised the platform default into this key on every save, so
+        # a value equal to the default is not a deliberate user override.
+        legacy_export = loaded.pop("export_path", "")
+        if isinstance(legacy_export, str) and legacy_export:
+            from wowlc.core.paths import get_path_manager
+            default_exports = str(get_path_manager().get_default_export_dir())
+            if legacy_export != default_exports:
+                loaded.setdefault("paths", {}).setdefault("export_dir", legacy_export)
+
         llm = loaded.get("llm")
         if not isinstance(llm, dict):
             return
@@ -201,6 +218,34 @@ class ConfigManager:
         # Rename active_provider if it points at the old name
         if llm.get("active_provider") == "together_ai":
             llm["active_provider"] = "together"
+
+    def _migrate_documents_config(self) -> None:
+        """One-time migration: fold the legacy Documents config.json (once
+        owned by PathManager, holding just export_path) into this config,
+        then delete the legacy file.
+        """
+        from wowlc.core.paths import get_path_manager
+        pm = get_path_manager()
+        legacy_path = pm.get_legacy_user_config_path()
+        if not legacy_path.exists():
+            return
+
+        try:
+            data = json.loads(legacy_path.read_text(encoding="utf-8"))
+            old = (data.get("export_path") or "").strip()
+            default_exports = str(pm.get_default_export_dir())
+            # The legacy file materialised the default path, so equality
+            # means "no real override".
+            if old and old != default_exports and not self.get_export_dir_override():
+                self._config.setdefault("paths", {})["export_dir"] = old
+                self._save_config()
+        except (json.JSONDecodeError, OSError):
+            pass  # unreadable legacy file: just retire it
+
+        try:
+            legacy_path.unlink()
+        except OSError:
+            pass
 
     def _deep_copy(self, d: dict) -> dict:
         """Create a deep copy of a dictionary."""
@@ -390,6 +435,44 @@ class ConfigManager:
     def set_tmb_guild_id(self, value: str) -> None:
         """Set ThatsmyBIS guild ID."""
         self._config["tmb"]["guild_id"] = value
+        self._save_config()
+
+    # =========================================================================
+    # Custom Realms
+    # =========================================================================
+
+    def get_custom_realms(self, version: str, region: str) -> dict:
+        """Get custom realms {name: slug} for a canonical game version and region."""
+        return dict(self._config.get("custom_realms", {}).get(version, {}).get(region.upper(), {}))
+
+    def add_custom_realm(self, version: str, region: str, name: str, slug: str) -> None:
+        """Add or update a custom realm under a canonical version and region."""
+        realms = self._config.setdefault("custom_realms", self._deep_copy(self.DEFAULTS["custom_realms"]))
+        realms.setdefault(version, {}).setdefault(region.upper(), {})[name] = slug
+        self._save_config()
+
+    def remove_custom_realm(self, version: str, region: str, name: str) -> None:
+        """Remove a custom realm; no-op if absent."""
+        self._config.get("custom_realms", {}).get(version, {}).get(region.upper(), {}).pop(name, None)
+        self._save_config()
+
+    # =========================================================================
+    # Custom Zones
+    # =========================================================================
+
+    def get_custom_zones(self, version: str) -> dict:
+        """Get custom WCL zones {zone_id_str: label} for a canonical game version."""
+        return dict(self._config.get("custom_zones", {}).get(version, {}))
+
+    def add_custom_zone(self, version: str, zone_id: int, label: str) -> None:
+        """Add or update a custom WCL zone under a canonical game version."""
+        zones = self._config.setdefault("custom_zones", self._deep_copy(self.DEFAULTS["custom_zones"]))
+        zones.setdefault(version, {})[str(zone_id)] = label
+        self._save_config()
+
+    def remove_custom_zone(self, version: str, zone_id: int) -> None:
+        """Remove a custom WCL zone; no-op if absent."""
+        self._config.get("custom_zones", {}).get(version, {}).pop(str(zone_id), None)
         self._save_config()
 
     # =========================================================================
@@ -639,6 +722,17 @@ class ConfigManager:
         self._config["player_metrics"]["show_raider_notes"] = value
         self._save_config()
 
+    def get_show_professions(self) -> bool:
+        """Get whether to include character professions in loot council prompts."""
+        return self._config.get("player_metrics", {}).get("show_professions", False)
+
+    def set_show_professions(self, value: bool) -> None:
+        """Set whether to include character professions in loot council prompts."""
+        if "player_metrics" not in self._config:
+            self._config["player_metrics"] = {}
+        self._config["player_metrics"]["show_professions"] = value
+        self._save_config()
+
     def get_raider_note_source(self) -> str:
         """Get which TMB note field to use: 'public_note' or 'officer_note'."""
         return self._config.get("player_metrics", {}).get("raider_note_source", "public_note")
@@ -662,19 +756,29 @@ class ConfigManager:
         self._save_config()
 
     # =========================================================================
-    # Export Path Configuration
+    # Path Overrides
     # =========================================================================
 
-    def get_export_path(self) -> str:
-        """Get export directory path."""
-        if self._config["export_path"]:
-            return self._config["export_path"]
-        # Return default based on platform
-        return self.DEFAULTS["export_path"]
+    def get_export_dir_override(self) -> str:
+        """Get the export directory override. Empty string means use the default."""
+        return self._config.get("paths", {}).get("export_dir", "")
 
-    def set_export_path(self, value: str) -> None:
-        """Set export directory path."""
-        self._config["export_path"] = value
+    def set_export_dir_override(self, value: str) -> None:
+        """Set the export directory override. Empty string means use the default."""
+        if "paths" not in self._config:
+            self._config["paths"] = {}
+        self._config["paths"]["export_dir"] = value
+        self._save_config()
+
+    def get_log_dir_override(self) -> str:
+        """Get the log directory override. Empty string means use the default."""
+        return self._config.get("paths", {}).get("log_dir", "")
+
+    def set_log_dir_override(self, value: str) -> None:
+        """Set the log directory override. Empty string means use the default."""
+        if "paths" not in self._config:
+            self._config["paths"] = {}
+        self._config["paths"]["log_dir"] = value
         self._save_config()
 
     # =========================================================================

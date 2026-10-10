@@ -252,7 +252,30 @@ class NexusItemManager:
                 return item_id
 
         return None
-    
+
+    def get_item_ids(self, item_name: str) -> list[int]:
+        """
+        Get all item IDs matching a name (case-insensitive).
+
+        Some items share a name across distinct IDs (e.g. the two Bindings of
+        the Windseeker, or the melee/caster Mark of the Champion); wishlist
+        fan-out needs every ID, not just the first.
+
+        Args:
+            item_name: The item name to search for.
+
+        Returns:
+            List of matching item IDs (empty if none found).
+        """
+        self._ensure_loaded()
+        item_name_lower = item_name.lower()
+
+        return [
+            item_id
+            for item_id, item in _shared_cache.items_by_id.items()
+            if item.get("name", "").lower() == item_name_lower
+        ]
+
     def get_item_level(self, item_id: int) -> Optional[int]:
         """
         Get item level by ID.

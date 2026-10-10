@@ -1,0 +1,23 @@
+{
+  "Era": {
+    "2000": "Molten Core",
+    "2001": "Onyxia's Lair",
+    "2002": "Blackwing Lair",
+    "2005": "Temple of Ahn'Qiraj",
+    "2006": "Naxxramas"
+  },
+  "TBC Anniversary": {
+    "1047": "Karazhan",
+    "1048": "Gruul/Mag",
+    "1056": "SSC/TK",
+    "1060": "BT/Hyjal"
+  },
+  "TBC Legacy": {
+    "1007": "Karazhan",
+    "1008": "Gruul/Mag",
+    "1010": "SSC/TK",
+    "1011": "BT/Hyjal",
+    "1012": "Zul'Aman",
+    "1013": "Sunwell"
+  }
+}

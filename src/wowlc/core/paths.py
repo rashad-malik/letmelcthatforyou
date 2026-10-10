@@ -8,9 +8,9 @@ Provides consistent access to user data, app data, and bundled resources.
 from pathlib import Path
 import sys
 import os
+import logging
 import platform
 from typing import Optional
-import json
 
 
 def _get_xdg_documents_dir() -> Path:
@@ -106,38 +106,40 @@ class PathManager:
         # Ensure directories exist
         self._ensure_directories()
 
-        # Load or create config
-        self._config = self._load_config()
+    def _get_override(self, key: str) -> str:
+        """Read a path override from ConfigManager.
 
-    def _load_config(self) -> dict:
-        """Load user configuration from Documents/letmelcthatforyou/config.json."""
-        config_path = self._user_dir / "config.json"
-
-        default_config = {
-            "export_path": str(self._user_dir / "Exports"),
-            "version": "1.0"
-        }
-
-        if not config_path.exists():
-            return default_config
-
+        Lazy import avoids a module-level cycle (config.py imports paths.py).
+        """
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-                # Ensure export_path exists
-                if "export_path" not in config:
-                    config["export_path"] = default_config["export_path"]
-                return config
-        except (json.JSONDecodeError, IOError):
-            return default_config
+            from wowlc.core.config import get_config_manager
+            cfg = get_config_manager()
+            if key == "export_dir":
+                return cfg.get_export_dir_override()
+            return cfg.get_log_dir_override()
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "Could not read path override %r; using default", key)
+            return ""
 
-    def _save_config(self) -> None:
-        """Save user configuration to Documents/letmelcthatforyou/config.json."""
-        config_path = self._user_dir / "config.json"
-        config_path.parent.mkdir(parents=True, exist_ok=True)
+    def _resolve_dir(self, key: str, default: Path) -> Path:
+        """Resolve a directory honouring any user override, creating it if needed.
 
-        with open(config_path, 'w', encoding='utf-8') as f:
-            json.dump(self._config, f, indent=2)
+        Falls back to the default when the override is unusable (e.g. a
+        removable drive is gone or permissions changed).
+        """
+        override = self._get_override(key)
+        if override:
+            candidate = Path(override)
+            try:
+                candidate.mkdir(parents=True, exist_ok=True)
+                return candidate
+            except OSError as e:
+                logging.getLogger(__name__).warning(
+                    "Configured %s %r unavailable (%s); falling back to %s",
+                    key, override, e, default)
+        default.mkdir(parents=True, exist_ok=True)
+        return default
 
     def _ensure_directories(self) -> None:
         """Create necessary directories on first run."""
@@ -183,9 +185,17 @@ class PathManager:
         """Get path to guild loot policy (user-editable in Documents)."""
         return self._user_dir / "guild_loot_policy.md"
 
+    def get_default_export_dir(self) -> Path:
+        """Get the platform-default export directory (ignores any override)."""
+        return self._user_dir / "Exports"
+
+    def get_default_log_dir(self) -> Path:
+        """Get the platform-default log directory (ignores any override)."""
+        return self._user_dir / "Logs"
+
     def get_export_path(self, filename: str = "") -> Path:
         """
-        Get path for CSV exports.
+        Get path for CSV exports, honouring any user-configured override.
 
         Args:
             filename: Optional filename to append (e.g., "loot_decisions.csv")
@@ -193,25 +203,17 @@ class PathManager:
         Returns:
             Full path to export file or directory.
         """
-        export_dir = Path(self._config.get("export_path", str(self._user_dir / "Exports")))
-        export_dir.mkdir(parents=True, exist_ok=True)
+        export_dir = self._resolve_dir("export_dir", self.get_default_export_dir())
 
         if filename:
             return export_dir / filename
         return export_dir
 
-    def set_export_path(self, new_path: str) -> None:
-        """
-        Set custom export path.
+    def get_legacy_user_config_path(self) -> Path:
+        """Get path to the retired Documents config.json.
 
-        Args:
-            new_path: New directory path for exports.
+        Exists solely so ConfigManager can migrate and delete the legacy file.
         """
-        self._config["export_path"] = new_path
-        self._save_config()
-
-    def get_user_config_path(self) -> Path:
-        """Get path to user configuration file."""
         return self._user_dir / "config.json"
 
     # =========================================================================
@@ -251,10 +253,8 @@ class PathManager:
         return self._appdata_dir / "config.json"
 
     def get_log_dir(self) -> Path:
-        """Get path to log directory."""
-        log_dir = self._user_dir / "Logs"
-        log_dir.mkdir(parents=True, exist_ok=True)
-        return log_dir
+        """Get path to log directory, honouring any user-configured override."""
+        return self._resolve_dir("log_dir", self.get_default_log_dir())
 
     # =========================================================================
     # Utility Methods

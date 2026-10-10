@@ -6,6 +6,7 @@ Supports two modes: Single Item (for quick lookups) and Raid Zone (batch process
 import asyncio
 from nicegui import ui, run
 from ..shared import config, register_connection_save_callback, register_game_version_callback, register_pyrewood_mode_callback, register_currently_equipped_callback
+from wowlc.core.zones import canonical_version_key, VERSION_ERA
 from wowlc.tools.fetching_current_items import cache_all_raiders_gear, get_cache_info
 from ...lc_processor import (
     LootCouncilProcessor,
@@ -18,12 +19,16 @@ from ...llm_providers import get_display_name, PROVIDERS
 from wowlc.tools.get_item_candidates import get_zone_items
 from .connections import check_connections_configured
 
-# Raid zones by game version
+# Raid zones by game version — TMB instance names. TBC Anniversary raids are
+# gated by Blizzard's phased release schedule (currently Phase 3), so only
+# unlocked raids are listed
 TBC_RAID_ZONES = [
     "Gruul's Lair",
     "Magtheridon's Lair",
     "Serpentshrine Cavern",
     "Tempest Keep",
+    "Hyjal Summit",
+    "Black Temple",
 ]
 
 # Legacy TBC raid zones (original TBC Classic) - used when Pyrewood dev mode is enabled
@@ -39,6 +44,7 @@ TBC_RAID_ZONES_LEGACY = [
 
 ERA_RAID_ZONES = [
     "Molten Core",
+    "Onyxia's Lair",
     "Blackwing Lair",
     "Temple of Ahn'Qiraj",
     "Naxxramas",
@@ -301,10 +307,12 @@ async def run_lc_processing(
             base_url=base_url,
         )
 
-        # Collect items from all selected zones
+        # Collect items from all selected zones, ordered by TMB priority
+        # tier so high-priority items are LC'd first (session allocations
+        # accumulate, so processing order influences later decisions).
         items = []
         for zone_name in selected_zones:
-            zone_items = get_zone_items(zone_name)
+            zone_items = get_zone_items(zone_name, sort_by_tier=True)
             items.extend(zone_items)
 
         if not items:
@@ -338,9 +346,9 @@ async def run_lc_processing(
 
         if decisions:
             output_path = await run.io_bound(processor.save_decisions_to_csv, decisions)
-            status_label.text = f'Complete! Saved to {output_path.name}'
+            status_label.text = f'Complete! Saved to {output_path}'
             ui.notify(
-                f'Processed {len(decisions)} items. Results saved to {output_path.name}',
+                f'Processed {len(decisions)} items. Results saved to {output_path}',
                 type='positive'
             )
         else:
@@ -524,7 +532,7 @@ def create_run_lc_tab(connection_refs: dict, game_version_toggle):
     def get_raid_zones_for_version():
         """Get raid zones based on current game version."""
         version = game_version_toggle.value if hasattr(game_version_toggle, 'value') else 'Era'
-        if version == 'Era':
+        if canonical_version_key(version) == VERSION_ERA:
             return ERA_RAID_ZONES
         if config.get_pyrewood_dev_mode():
             return TBC_RAID_ZONES_LEGACY
@@ -828,7 +836,8 @@ def create_run_lc_tab(connection_refs: dict, game_version_toggle):
                 with ui.row().classes('items-center gap-2'):
                     ui.icon('info', size='sm')
                     ui.label(
-                        'Results are automatically saved to Exports/loot_suggestions.csv'
+                        'Results are automatically saved to your export folder '
+                        '(see Settings → File Locations)'
                     ).classes('text-sm')
 
         # Mode switching handler
