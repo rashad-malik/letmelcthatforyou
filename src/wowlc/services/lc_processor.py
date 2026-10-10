@@ -61,6 +61,7 @@ from ..tools.get_item_candidates import (
     get_zone_items,
 )
 from .llm_providers import PROVIDERS, get_model_context_window
+from ..core.config import DEFAULT_LLM_MODEL
 
 # Get PathManager instance
 paths = get_path_manager()
@@ -183,11 +184,19 @@ class LootCouncilProcessor:
     MAX_RETRIES = 3
     RETRY_DELAY = 2.0  # Initial delay in seconds (exponential backoff)
 
+    # Output-token ceilings (billing is for tokens actually generated). Hosted
+    # reasoning models such as Claude Opus 5.x think adaptively and can't turn
+    # it off, and those hidden tokens count against this cap, so 500 truncated
+    # answers. Local servers (e.g. vLLM) reject prompt + cap > context window,
+    # so they get a smaller ceiling.
+    MAX_OUTPUT_TOKENS_HOSTED = 4096
+    MAX_OUTPUT_TOKENS_LOCAL = 2048
+
     def __init__(
         self,
         api_key: str = "",
         provider: str = "anthropic",
-        model: str = "claude-sonnet-4-20250514",
+        model: str = DEFAULT_LLM_MODEL,
         delay_seconds: float = 2.0,
         base_url: str = ""
     ):
@@ -197,7 +206,7 @@ class LootCouncilProcessor:
         Args:
             api_key: API key for hosted providers (ignored for local)
             provider: any-llm provider key (e.g. "anthropic", "openai", "ollama")
-            model: Model to use (default: claude-sonnet-4-20250514)
+            model: Model to use (default: DEFAULT_LLM_MODEL)
             delay_seconds: Delay between API calls (default: 2.0 for rate limiting)
             base_url: Base URL for local providers (ignored for hosted)
         """
@@ -373,7 +382,10 @@ class LootCouncilProcessor:
                 "model": self.model,
                 "provider": self.any_llm_provider,
                 "messages": self._build_messages(system_prompt, user_prompt),
-                "max_tokens": 500,
+                "max_tokens": (
+                    self.MAX_OUTPUT_TOKENS_HOSTED if self.kind == "hosted"
+                    else self.MAX_OUTPUT_TOKENS_LOCAL
+                ),
             }
             if self.kind == "hosted":
                 if self.api_key:
@@ -424,6 +436,14 @@ class LootCouncilProcessor:
                     raise
 
             response_text = response.choices[0].message.content
+            if response.choices[0].finish_reason == "length":
+                logger.warning(
+                    f"Response for '{item_name}' hit the output token limit "
+                    f"({completion_kwargs['max_tokens']}) and was cut off."
+                )
+                response_text = (response_text or "") + (
+                    "\n\n[Response cut off: the model reached its output token limit.]"
+                )
 
             # Extract token usage information
             token_usage = self._extract_token_usage(response)

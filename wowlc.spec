@@ -123,9 +123,16 @@ hidden_imports = [
     'any_llm.providers',
     'genai_prices',
     'genai_prices.data',
+    # genai_prices imports its price-update module (httpx2) at import time
+    'httpx2',
+    'httpcore2',
+    'truststore',
     # First-party SDKs commonly invoked by any-llm
     'anthropic',
     'openai',
+    # any-llm's LM Studio provider uses the native SDK behind a guarded import;
+    # if it isn't bundled, LM Studio fails at runtime with "missing packages"
+    'lmstudio',
 
     # === Network/API ===
     'gql',
@@ -178,6 +185,7 @@ hidden_imports = [
 hidden_imports += collect_submodules('nicegui')
 hidden_imports += collect_submodules('any_llm')
 hidden_imports += collect_submodules('genai_prices')
+hidden_imports += collect_submodules('lmstudio')
 hidden_imports += collect_submodules('gql')
 hidden_imports += collect_submodules('uvicorn')
 hidden_imports += collect_submodules('starlette')

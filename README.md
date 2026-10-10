@@ -207,24 +207,24 @@ The app talks to LLMs through [any-llm](https://github.com/mozilla-ai/any-llm), 
 
 | Provider | Example Models |
 |----------|----------------|
-| **Anthropic** | Claude Sonnet 4.5, Claude Opus 4.5 |
-| **OpenAI** | GPT-5, GPT-4 |
-| **Google** | Gemini 1.5 Pro, Gemini 1.5 Flash |
-| **Mistral** | Mistral Large, Mistral Medium |
-| **Groq** | Llama 3, Mixtral |
-| **xAI** | Grok |
-| **Cohere** | Command R+ |
+| **Anthropic** | Claude Sonnet 5.5, Claude Opus 5.5, Claude Haiku 5.5 |
+| **OpenAI** | GPT-6.1 Sol, GPT-5.5, gpt-oss-120b |
+| **Google** | Gemini 3.8 Flash, Gemini 3.1 Pro, Gemma 4 |
+| **Mistral** | Mistral Large, Mistral Medium 3.5, Magistral |
+| **Groq** | Llama 4, gpt-oss, Qwen 3.8 |
+| **xAI** | Grok 4.7, Grok 4.5 |
+| **Cohere** | Command A, Command R+ |
 | **Together AI** | Various open-source models |
-| **DeepSeek** | DeepSeek Chat |
+| **DeepSeek** | DeepSeek V4 Pro, DeepSeek V4 Flash |
 | **OpenRouter** | Aggregator — one key, hundreds of models from many providers |
-| **Perplexity** | Sonar |
+| **Perplexity** | Sonar Pro, Sonar Reasoning Pro |
 | **Fireworks AI** | Hosted open-source inference |
-| **Cerebras** | Fast inference for Llama, Qwen, and other open-source models |
+| **Cerebras** | Fast inference for gpt-oss, Qwen, Gemma and other open-weight models |
 | **SambaNova** | Hosted open-source inference |
-| **Moonshot (Kimi)** | Kimi K2 |
+| **Moonshot (Kimi)** | Kimi K3, Kimi K2.6 |
 | **Nebius AI Studio** | Hosted open-source inference |
 | **HuggingFace Inference** | Models hosted on HuggingFace Inference |
-| **z\.ai (GLM)** | GLM models |
+| **z\.ai (GLM)** | GLM-5.3, GLM-5.3 Flash |
 
 ### Local runtimes (base URL, no API key)
 

@@ -12,6 +12,10 @@ import json
 from typing import Optional, List
 
 
+# Seeded into new configs and used as the fallback model. Refresh this when the
+# LLM stack is upgraded; it must be an id present in data/model_catalogue.json.
+DEFAULT_LLM_MODEL = "claude-sonnet-5-5"
+
 # The 7 decision metrics that have independent per-mode (Simple/Custom) toggle state
 _DECISION_METRIC_KEYS = [
     "show_attendance", "show_recent_loot", "show_wishlist_position",
@@ -95,7 +99,7 @@ class ConfigManager:
         "export_path": "",
         "llm": {
             "active_provider": "anthropic",
-            "active_model": "claude-sonnet-4-20250514",
+            "active_model": DEFAULT_LLM_MODEL,
             "api_keys": {
                 "anthropic": "",
                 "openai": "",
@@ -690,7 +694,7 @@ class ConfigManager:
 
     def get_llm_model(self) -> str:
         """Get the active LLM model."""
-        return self._config.get("llm", {}).get("active_model", "claude-sonnet-4-20250514")
+        return self._config.get("llm", {}).get("active_model", DEFAULT_LLM_MODEL)
 
     def set_llm_model(self, value: str) -> None:
         """Set the active LLM model."""

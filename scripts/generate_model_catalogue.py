@@ -8,7 +8,7 @@ model's context window when known.
 Local providers (Ollama, LM Studio, etc.) are not catalogued here — their
 models are queried at runtime against the user's local server.
 
-Providers absent from genai_prices (huggingface, sambanova, nebius, zai)
+Providers absent from genai_prices (huggingface, sambanova, nebius)
 get empty entries; the GUI falls back to the "Test Connection" flow
 (any_llm.list_models) for those.
 
@@ -41,11 +41,13 @@ PROVIDER_MAP: dict[str, str | None] = {
     "fireworks": "fireworks",
     "cerebras": "cerebras",
     "moonshot": "moonshotai",
+    "zai": "zai",
     # Not currently in genai_prices — empty entries; GUI uses Test Connection.
+    # genai_prices only has huggingface_<backend> routed variants, which don't
+    # map onto these single-key providers.
     "sambanova": None,
     "nebius": None,
     "huggingface": None,
-    "zai": None,
 }
 
 
