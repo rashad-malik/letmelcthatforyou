@@ -40,8 +40,12 @@ def check_wcl_token_valid() -> bool:
         return False
 
 
-async def run_wcl_authentication(auth_button):
-    """Run WCL authentication and update button color based on result."""
+async def run_wcl_authentication(auth_button, token_input=None):
+    """Run WCL authentication and update button color based on result.
+
+    The new token is also written to config, because WarcraftLogsClient reads
+    the user token from config rather than from the token file this flow saves.
+    """
     try:
         # Disable button during authentication
         auth_button.disable()
@@ -60,7 +64,15 @@ async def run_wcl_authentication(auth_button):
         # Run authentication in background thread (Playwright blocks)
         import asyncio
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, lambda: wcl_authenticate(client_id, client_secret))
+        token_data = await loop.run_in_executor(None, lambda: wcl_authenticate(client_id, client_secret))
+
+        new_token = (token_data or {}).get('access_token')
+        if new_token:
+            config.set_wcl_user_token(new_token)
+            if token_input is not None:
+                # Keep the field in sync so a later Save doesn't restore the stale token
+                token_input.value = new_token
+                mark_field_saved('wcl_user_token', new_token)
 
         # Success - turn button green
         auth_button.props('color=positive')
@@ -194,7 +206,7 @@ def create_dev_dialog():
 
                         wcl_auth_button = ui.button(
                             'Authenticate WCL',
-                            on_click=lambda: run_wcl_authentication(wcl_auth_button)
+                            on_click=lambda: run_wcl_authentication(wcl_auth_button, ui_refs['wcl_user_token'])
                         )
                         ui_refs['wcl_auth_button'] = wcl_auth_button
 

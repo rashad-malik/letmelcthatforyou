@@ -15,11 +15,13 @@ os.environ.setdefault("ANY_LLM_UNIFIED_EXCEPTIONS", "1")
 
 # PyInstaller with console=False sets sys.stdout/stderr to None on Windows.
 # Redirect to devnull to prevent crashes in libraries (e.g., uvicorn) that
-# call stream.isatty() without null-checking.
+# call stream.isatty() without null-checking. UTF-8 because the default
+# Windows codepage (cp1252) can't encode the emoji some modules print,
+# e.g. wcl_authenticate.
 if sys.stdout is None:
-    sys.stdout = open(os.devnull, 'w')
+    sys.stdout = open(os.devnull, 'w', encoding='utf-8')
 if sys.stderr is None:
-    sys.stderr = open(os.devnull, 'w')
+    sys.stderr = open(os.devnull, 'w', encoding='utf-8')
 
 import multiprocessing
 
